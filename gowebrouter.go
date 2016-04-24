@@ -1,15 +1,9 @@
-package gowebrouter
+package gowebserver
 
 import (
-	"fmt"
+	"net/http"
 )
 
-var packageTitle = "gowebrouter"
-
-func init() {
-	fmt.Println(packageTitle + " package loaded")
-}
-
-func Test() {
-	Test2()
+func SetupRoutes() {
+	http.Handle("/", http.FileServer(http.Dir("./public")))
 }
