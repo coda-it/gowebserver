@@ -6,8 +6,14 @@ import (
 	"log"
 )
 
-func SetupServer(port string) {
-	SetupRoutes()
+var router Router
+
+type WebServer struct {
+
+}
+
+func (s *WebServer) RunServer(port string) {
+	http.HandleFunc("/", route)
 
 	fmt.Println("Setting up server on " + port + " port")
 	fmt.Println("Listening...")
@@ -18,3 +24,4 @@ func SetupServer(port string) {
 		log.Fatal("ListenAndServe: ", err)
 	}
 }
+
