@@ -8,7 +8,7 @@ import (
 
 var (
 	routeNumbers = regexp.MustCompile(`\d`)
-	routeApi = regexp.MustCompile(`api`)
+	routeApi = regexp.MustCompile(`^(\/api)(\/?\?{0}|\/?\?{1}.*)$`)
 )
 
 func Route(w http.ResponseWriter, r *http.Request) {
