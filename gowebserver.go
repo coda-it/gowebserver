@@ -6,14 +6,12 @@ import (
 	"log"
 )
 
-var router Router
-
 type WebServer struct {
 
 }
 
 func (s *WebServer) RunServer(port string) {
-	http.HandleFunc("/", route)
+	http.HandleFunc("/", Route)
 
 	fmt.Println("Setting up server on " + port + " port")
 	fmt.Println("Listening...")
