@@ -1,4 +1,4 @@
-package gowebserver
+package models
 
 import (
 	"html/template"
