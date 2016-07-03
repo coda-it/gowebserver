@@ -16,7 +16,7 @@ func (s *WebServer) RunServer(port string) {
 	fmt.Println("Setting up server on " + port + " port")
 	fmt.Println("Listening...")
 
-	err := http.ListenAndServe(":" + port, nil)
+	err := http.ListenAndServe(port, nil)
 
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
