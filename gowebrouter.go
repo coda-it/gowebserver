@@ -3,6 +3,7 @@ package gowebserver
 import (
 	"regexp"
 	"net/http"
+	"time"
 	"github.com/oskarszura/gowebserver/controllers"
 )
 
@@ -14,6 +15,19 @@ var (
 
 func Route(w http.ResponseWriter, r *http.Request) {
 	urlPath := r.URL.Path
+	_, err := r.Cookie("sid")
+
+	if(err != nil) {
+		expiration := time.Now().Add(365 * 24 * time.Hour)
+		sid := SidGenerator()
+
+		cookie := http.Cookie {
+			Name: "sid",
+			Value: sid,
+			Expires: expiration }
+
+		http.SetCookie(w, &cookie)
+	}
 
 	switch {
 	case routeFront.MatchString(urlPath):
