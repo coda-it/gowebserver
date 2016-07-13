@@ -9,7 +9,8 @@ func SidGenerator () string {
 	sid, err := exec.Command("uuidgen").Output()
 
 	if(err != nil) {
-		log.Fatal(err)
+		log.Println(err)
+		return "guest"
 	}
 
 	return string(sid)
