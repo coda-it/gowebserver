@@ -7,13 +7,13 @@ import (
 )
 
 type WebServer struct {
-
+	Router		UrlRouter
 }
 
 func (s *WebServer) RunServer(port string) {
 	staticFileServer := http.FileServer(http.Dir("public"))
 	http.Handle("/static/", http.StripPrefix("/static/", staticFileServer))
-	http.HandleFunc("/", Route)
+	http.HandleFunc("/", s.Router.route)
 
 	fmt.Println("Setting up server on " + port + " port")
 	fmt.Println("Listening...")
@@ -24,4 +24,3 @@ func (s *WebServer) RunServer(port string) {
 		log.Fatal("ListenAndServe: ", err)
 	}
 }
-

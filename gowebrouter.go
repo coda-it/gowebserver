@@ -4,17 +4,47 @@ import (
 	"regexp"
 	"net/http"
 	"time"
-	"github.com/oskarszura/gowebserver/controllers"
 )
 
-var (
-	routeFront = regexp.MustCompile(`^\/$`)
-	routeNumbers = regexp.MustCompile(`\d`)
-	routeApi = regexp.MustCompile(`^(\/api)(\/?\?{0}|\/?\?{1}.*)$`)
-)
+type ControllerHandler func(http.ResponseWriter, *http.Request)
 
-func Route(w http.ResponseWriter, r *http.Request) {
+type UrlRoute struct {
+	urlRegExp string
+	handler	  ControllerHandler
+}
+
+type UrlRouter struct {
+	urlRoutes 		[]UrlRoute
+	pageNotFoundController	ControllerHandler
+}
+
+func (router *UrlRouter) findRoute (path string) UrlRoute {
+	for _, v := range router.urlRoutes {
+		pathRegExp := regexp.MustCompile(v.urlRegExp)
+
+		if (pathRegExp.MatchString(path)) {
+			return v
+		}
+	}
+	return UrlRoute{
+		handler: router.pageNotFoundController,
+	}
+}
+
+func (router *UrlRouter) AddRoute(pathRegExp string, pathHandler ControllerHandler) {
+	router.urlRoutes = append(router.urlRoutes, UrlRoute{
+		urlRegExp: pathRegExp,
+		handler: pathHandler,
+	})
+}
+
+func (router *UrlRouter) AddPageNotFoundRoute(pathHandler ControllerHandler) {
+	router.pageNotFoundController = pathHandler
+}
+
+func (router *UrlRouter) route(w http.ResponseWriter, r *http.Request)  {
 	urlPath := r.URL.Path
+
 	_, err := r.Cookie("sid")
 
 	if(err != nil) {
@@ -29,14 +59,6 @@ func Route(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &cookie)
 	}
 
-	switch {
-	case routeFront.MatchString(urlPath):
-		controllers.ControllerFront(w, r)
-	case routeNumbers.MatchString(urlPath):
-		controllers.ControllerDigits(w, r)
-	case routeApi.MatchString(urlPath):
-		controllers.ControllerApi(w, r)
-	default:
-		controllers.Controller404(w, r)
-	}
+	routeHandler := router.findRoute(urlPath).handler
+	routeHandler(w, r)
 }
