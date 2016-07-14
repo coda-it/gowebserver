@@ -11,6 +11,8 @@ type WebServer struct {
 }
 
 func (s *WebServer) RunServer(port string) {
+	staticFileServer := http.FileServer(http.Dir("public"))
+	http.Handle("/static/", http.StripPrefix("/static/", staticFileServer))
 	http.HandleFunc("/", Route)
 
 	fmt.Println("Setting up server on " + port + " port")
