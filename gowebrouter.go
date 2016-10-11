@@ -3,13 +3,13 @@ package gowebserver
 import (
 	"regexp"
 	"net/http"
-	"time"
 )
 
 type ControllerHandler func(http.ResponseWriter, *http.Request)
 
 type UrlRoute struct {
 	urlRegExp string
+	method    string
 	handler	  ControllerHandler
 }
 
@@ -44,20 +44,6 @@ func (router *UrlRouter) AddPageNotFoundRoute(pathHandler ControllerHandler) {
 
 func (router *UrlRouter) route(w http.ResponseWriter, r *http.Request)  {
 	urlPath := r.URL.Path
-
-	_, err := r.Cookie("sid")
-
-	if(err != nil) {
-		expiration := time.Now().Add(365 * 24 * time.Hour)
-		sid := SidGenerator()
-
-		cookie := http.Cookie {
-			Name: "sid",
-			Value: sid,
-			Expires: expiration }
-
-		http.SetCookie(w, &cookie)
-	}
 
 	routeHandler := router.findRoute(urlPath).handler
 	routeHandler(w, r)
