@@ -5,7 +5,7 @@ import (
 	"strings"
 	"net/http"
 	"log"
-	"github.com/oskarszura/trips/gowebserver/utils"
+	"github.com/oskarszura/gowebserver/utils"
 )
 
 type UrlRouter struct {
