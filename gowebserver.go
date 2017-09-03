@@ -3,8 +3,8 @@ package gowebserver
 import (
     "log"
 	"net/http"
-    "github.com/oskarszura/trips/gowebserver/router"
-    "github.com/oskarszura/trips/gowebserver/session"
+    "github.com/oskarszura/gowebserver/router"
+    "github.com/oskarszura/gowebserver/session"
 )
 
 type WebServerOptions struct {
