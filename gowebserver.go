@@ -1,10 +1,10 @@
 package gowebserver
 
 import (
-    "log"
 	"net/http"
     "github.com/oskarszura/gowebserver/router"
     "github.com/oskarszura/gowebserver/session"
+	"github.com/oskarszura/gowebserver/utils/logger"
 )
 
 type WebServerOptions struct {
@@ -18,6 +18,8 @@ type WebServer struct {
 }
 
 func (s *WebServer) Run(options WebServerOptions) {
+	logger.Setup("server")
+
     session.InitializeSessions()
 	staticFileServer := http.FileServer(http.Dir(options.StaticFilesDir))
 
@@ -25,11 +27,11 @@ func (s *WebServer) Run(options WebServerOptions) {
         http.StripPrefix(options.StaticFilesUrl, staticFileServer))
 	http.HandleFunc("/", s.Router.Route)
 
-	log.Println("Server listening on port = " + options.Port + " ...")
+	logger.Log("info","Server listening on port = " + options.Port + " ...")
 
 	err := http.ListenAndServe(options.Port, nil)
 
 	if err != nil {
-		log.Fatal("Server failed: ", err)
+		logger.Log("error","Server failed: ", err)
 	}
 }

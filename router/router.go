@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"net/http"
-	"log"
-	"github.com/oskarszura/gowebserver/utils"
+	"github.com/oskarszura/gowebserver/utils/url"
+	"github.com/oskarszura/gowebserver/utils/logger"
 )
 
 type UrlRouter struct {
@@ -42,7 +42,7 @@ func (router *UrlRouter) Route(w http.ResponseWriter, r *http.Request)  {
 		 params,
 	}
 
-	log.Println("Navigating to url = " + urlPath + " vs route = " +
+	logger.Log("info", "Navigating to url = " + urlPath + " vs route = " +
         route.urlRegExp)
 
 	routeHandler := route.handler
@@ -53,7 +53,7 @@ func (router *UrlRouter) AddRoute(urlPattern string,
     pathHandler ControllerHandler) {
 
 	params := make(map[string]int)
-	pathRegExp := utils.UrlPatternToRegExp(urlPattern)
+	pathRegExp := url.UrlPatternToRegExp(urlPattern)
 
 	urlPathItems := strings.Split(urlPattern, "/")
 
