@@ -42,7 +42,7 @@ func (router *UrlRouter) Route(w http.ResponseWriter, r *http.Request)  {
 		 params,
 	}
 
-	logger.Log("info", "Navigating to url = " + urlPath + " vs route = " +
+	logger.Log(logger.INFO, "Navigating to url = " + urlPath + " vs route = " +
         route.urlRegExp)
 
 	routeHandler := route.handler

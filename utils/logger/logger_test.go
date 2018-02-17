@@ -6,13 +6,16 @@ import (
 	"os"
 )
 
-func TestLog(t *testing.T) {
+func TestSetup(t *testing.T) {
 	t.Run("Should setup logger", func(t *testing.T) {
-		expectedLogger := log.New(os.Stdout, buildPrefix("prefix"), log.LstdFlags)
-		Setup("prefix")
+		expectedLogger := log.New(os.Stdout, "prefix: ", log.LstdFlags)
+		expectedPrefix := expectedLogger.Prefix()
 
-		if expectedLogger != logger {
-			t.Errorf("", )
+		Setup("prefix")
+		prefix := logger.Prefix()
+
+		if expectedPrefix != prefix {
+			t.Errorf("Prefixes don't match")
 		}
 	})
 }

@@ -2,14 +2,19 @@ package logger
 
 import (
 	"log"
-	"bytes"
 	"os"
 )
 
 var (
-	buf		bytes.Buffer
 	logger	*log.Logger
 )
+
+const (
+	DEBUG	= "debug"
+	INFO	= "info"
+	ERROR	= "error"
+)
+
 
 func buildPrefix(prefix string) string {
 	return prefix + ": "
@@ -28,14 +33,13 @@ func Log(level string, message string, args ...interface{}) {
 	}
 
 	switch level {
-	case "info":
+	case INFO:
 		logger.Println(logs...)
 
-	case "error":
+	case ERROR:
 		logger.Println(logs...)
 
 	default:
 		logger.Println("Not supported log level")
-
 	}
 }

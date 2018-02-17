@@ -27,11 +27,11 @@ func (s *WebServer) Run(options WebServerOptions) {
         http.StripPrefix(options.StaticFilesUrl, staticFileServer))
 	http.HandleFunc("/", s.Router.Route)
 
-	logger.Log("info","Server listening on port = " + options.Port + " ...")
+	logger.Log(logger.INFO,"Server listening on port = " + options.Port + " ...")
 
 	err := http.ListenAndServe(options.Port, nil)
 
 	if err != nil {
-		logger.Log("error","Server failed: ", err)
+		logger.Log(logger.INFO,"Server failed: ", err)
 	}
 }
