@@ -4,6 +4,12 @@ type Session struct {
     Variables map[string]interface{}
 }
 
+func SessionFactory() Session {
+    return Session {
+        Variables: make(map[string]interface{}),
+    }
+}
+
 func (session *Session) Get(key string) interface{} {
     return session.Variables[key]
 }

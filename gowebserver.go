@@ -17,10 +17,10 @@ type WebServer struct {
 	Router		router.UrlRouter
 }
 
-func (s *WebServer) Run(options WebServerOptions) {
-	logger.Setup("server")
+func (s *WebServer) Run(options WebServerOptions) bool {
+	logger.Init("server")
+    session.Init()
 
-    session.InitializeSessions()
 	staticFileServer := http.FileServer(http.Dir(options.StaticFilesDir))
 
 	http.Handle(options.StaticFilesUrl,
@@ -32,6 +32,9 @@ func (s *WebServer) Run(options WebServerOptions) {
 	err := http.ListenAndServe(options.Port, nil)
 
 	if err != nil {
-		logger.Log(logger.INFO,"Server failed: ", err)
+		logger.Log(logger.INFO,"Running server failed: ", err)
+		return false
 	}
+
+	return true
 }

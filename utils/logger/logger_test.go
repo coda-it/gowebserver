@@ -11,7 +11,7 @@ func TestSetup(t *testing.T) {
 		expectedLogger := log.New(os.Stdout, "prefix: ", log.LstdFlags)
 		expectedPrefix := expectedLogger.Prefix()
 
-		Setup("prefix")
+		Init("prefix")
 		prefix := logger.Prefix()
 
 		if expectedPrefix != prefix {

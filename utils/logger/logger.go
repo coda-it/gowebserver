@@ -20,7 +20,7 @@ func buildPrefix(prefix string) string {
 	return prefix + ": "
 }
 
-func Setup(prefix string) {
+func Init(prefix string) {
 	logger = log.New(os.Stdout, buildPrefix(prefix), log.LstdFlags)
 }
 
@@ -33,6 +33,9 @@ func Log(level string, message string, args ...interface{}) {
 	}
 
 	switch level {
+	case DEBUG:
+		logger.Println(logs...)
+
 	case INFO:
 		logger.Println(logs...)
 
