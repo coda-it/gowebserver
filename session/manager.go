@@ -1,28 +1,46 @@
 package session
 
-var sessions map[string]Session
+import "github.com/oskarszura/gowebserver/utils/logger"
 
-func Init() {
-    sessions = make(map[string]Session)
+type ISessionManager interface {
+    IsExist(string) bool
+    Create(string)  Session
 }
 
-func Create(sessionId string) Session {
-    if persistedSession, ok := sessions[sessionId]; ok {
+type SessionManager struct {
+    sessions map[string]Session
+}
+
+func New() SessionManager {
+   return SessionManager{
+       make(map[string]Session),
+   }
+}
+
+func (s SessionManager) Create(sessionId string) Session {
+    if persistedSession, ok := s.sessions[sessionId]; ok {
         return persistedSession
     }
 
-    session := SessionFactory()
+    session := Session {
+        Variables: make(map[string]interface{}),
+    }
+    logger.Log(logger.INFO,"----- s.sessions ", s.sessions)
 
-    sessions[sessionId] = session
+    s.sessions[sessionId] = session
 
     return session
 }
 
-func IsExist(sessionId string) bool {
-    if _, ok := sessions[sessionId]; ok {
+func (s SessionManager) Get(sid string) Session {
+    return s.sessions[sid]
+}
+
+func (s SessionManager) IsExist(sessionId string) bool {
+    if _, ok := s.sessions[sessionId]; ok {
         return true
     }
 
-	return false
+    return false
 }
 

@@ -14,12 +14,14 @@ type WebServerOptions struct {
 }
 
 type WebServer struct {
-	Router		router.UrlRouter
+	Router			router.Router
+	SessionManager	session.SessionManager
 }
 
 func (s *WebServer) Run(options WebServerOptions) bool {
 	logger.Init("server")
-    session.Init()
+    s.SessionManager = session.New()
+    s.Router.New(s.SessionManager)
 
 	staticFileServer := http.FileServer(http.Dir(options.StaticFilesDir))
 
@@ -27,7 +29,7 @@ func (s *WebServer) Run(options WebServerOptions) bool {
         http.StripPrefix(options.StaticFilesUrl, staticFileServer))
 	http.HandleFunc("/", s.Router.Route)
 
-	logger.Log(logger.INFO,"Server listening on port = " + options.Port + " ...")
+	logger.Log(logger.INFO,"Server listening on port = " + options.Port+ " ...")
 
 	err := http.ListenAndServe(options.Port, nil)
 
