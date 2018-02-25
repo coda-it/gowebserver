@@ -1,10 +1,10 @@
 package gowebserver
 
 import (
-    "log"
 	"net/http"
     "github.com/oskarszura/gowebserver/router"
     "github.com/oskarszura/gowebserver/session"
+	"github.com/oskarszura/gowebserver/utils/logger"
 )
 
 type WebServerOptions struct {
@@ -14,22 +14,35 @@ type WebServerOptions struct {
 }
 
 type WebServer struct {
-	Router		router.UrlRouter
+	Router			router.Router
+	Options 		WebServerOptions
 }
 
-func (s *WebServer) Run(options WebServerOptions) {
-    session.InitializeSessions()
-	staticFileServer := http.FileServer(http.Dir(options.StaticFilesDir))
+func New(options WebServerOptions, notFound router.ControllerHandler) *WebServer {
+	sm := session.New()
 
-	http.Handle(options.StaticFilesUrl,
-        http.StripPrefix(options.StaticFilesUrl, staticFileServer))
+	return &WebServer{
+		router.New(sm, notFound),
+		options,
+	}
+}
+
+func (s *WebServer) Run() bool {
+	logger.Init("server")
+
+	staticFileServer := http.FileServer(http.Dir(s.Options.StaticFilesDir))
+
+	http.Handle(s.Options.StaticFilesUrl, http.StripPrefix(s.Options.StaticFilesUrl, staticFileServer))
 	http.HandleFunc("/", s.Router.Route)
 
-	log.Println("Server listening on port = " + options.Port + " ...")
+	logger.Log(logger.INFO,"Server listening on port = " + s.Options.Port+ " ...")
 
-	err := http.ListenAndServe(options.Port, nil)
+	err := http.ListenAndServe(s.Options.Port, nil)
 
 	if err != nil {
-		log.Fatal("Server failed: ", err)
+		logger.Log(logger.INFO,"Running server failed: ", err)
+		return false
 	}
+
+	return true
 }

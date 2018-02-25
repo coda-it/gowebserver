@@ -4,16 +4,31 @@ import (
 	"regexp"
 	"strings"
 	"net/http"
-	"log"
-	"github.com/oskarszura/gowebserver/utils"
+	"github.com/oskarszura/gowebserver/utils/url"
+	"github.com/oskarszura/gowebserver/utils/logger"
+	"github.com/oskarszura/gowebserver/session"
 )
 
-type UrlRouter struct {
-    urlRoutes 		[]UrlRoute
+type IRouter interface {
+	Route(w http.ResponseWriter, r *http.Request)
+	AddRoute(w http.ResponseWriter, r *http.Request)
+}
+
+type Router struct {
+	sessionManager			session.ISessionManager
+    urlRoutes 				[]UrlRoute
     pageNotFoundController	ControllerHandler
 }
 
-func (router *UrlRouter) findRoute (path string) UrlRoute {
+func New(sm session.SessionManager, notFound ControllerHandler) Router {
+	return Router{
+		sm,
+		make([]UrlRoute, 0),
+		notFound,
+	}
+}
+
+func (router Router) findRoute (path string) UrlRoute {
 	for _, v := range router.urlRoutes {
 		pathRegExp := regexp.MustCompile(v.urlRegExp)
 
@@ -26,7 +41,11 @@ func (router *UrlRouter) findRoute (path string) UrlRoute {
 	}
 }
 
-func (router *UrlRouter) Route(w http.ResponseWriter, r *http.Request)  {
+func (router *Router) New(sm session.ISessionManager) {
+	router.sessionManager = sm
+}
+
+func (router *Router) Route(w http.ResponseWriter, r *http.Request)  {
 	urlPath := r.URL.Path
 	route := router.findRoute(urlPath)
 	params := make(map[string]string)
@@ -42,18 +61,17 @@ func (router *UrlRouter) Route(w http.ResponseWriter, r *http.Request)  {
 		 params,
 	}
 
-	log.Println("Navigating to url = " + urlPath + " vs route = " +
+	logger.Log(logger.INFO, "Navigating to url = " + urlPath + " vs route = " +
         route.urlRegExp)
 
 	routeHandler := route.handler
-	routeHandler(w, r, *urlOptions)
+	routeHandler(w, r, *urlOptions, router.sessionManager)
 }
 
-func (router *UrlRouter) AddRoute(urlPattern string,
-    pathHandler ControllerHandler) {
+func (router *Router) AddRoute(urlPattern string, pathHandler ControllerHandler) {
 
 	params := make(map[string]int)
-	pathRegExp := utils.UrlPatternToRegExp(urlPattern)
+	pathRegExp := url.UrlPatternToRegExp(urlPattern)
 
 	urlPathItems := strings.Split(urlPattern, "/")
 
@@ -73,8 +91,4 @@ func (router *UrlRouter) AddRoute(urlPattern string,
 		handler: pathHandler,
 		params: params,
 	})
-}
-
-func (router *UrlRouter) AddNotFoundRoute(pathHandler ControllerHandler) {
-	router.pageNotFoundController = pathHandler
 }

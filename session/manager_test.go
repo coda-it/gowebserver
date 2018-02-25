@@ -3,17 +3,14 @@ package session
 import (
     "testing"
     "reflect"
-    "net/http/httptest"
-    "net/http"
 )
 
-func TestInitializeSessions(t *testing.T) {
-    t.Run("Should initialize 'session' singleton", func(t *testing.T) {
-        InitializeSessions()
-        sessions := GetSessions()
+func TestNew(t *testing.T) {
+    t.Run("Should initialize session manager", func(t *testing.T) {
+        sm := New()
         expectedSessions := make(map[string]Session)
 
-        isInitialized := reflect.DeepEqual(sessions, expectedSessions)
+        isInitialized := reflect.DeepEqual(sm.sessions, expectedSessions)
 
         if !isInitialized {
             t.Errorf("Sessions array not initialized")
@@ -23,7 +20,8 @@ func TestInitializeSessions(t *testing.T) {
 
 func TestCreateSession(t *testing.T) {
     t.Run("Should create session", func(t *testing.T) {
-        createdSession := CreateSession("mySessionId")
+        sm := New()
+        createdSession := sm.Create("mySessionId")
 
         isSessionType := reflect.TypeOf(createdSession) == reflect.TypeOf(Session{})
 
@@ -33,18 +31,14 @@ func TestCreateSession(t *testing.T) {
     })
 }
 
-func TestIsLogged(t *testing.T) {
+func TestIsExist(t *testing.T) {
+    sm := New()
+    sm.Create("mySessionId")
+
     t.Run("Should return true if user have session cookie which is " +
         "persisted in singleton", func(t *testing.T) {
 
-        recorder := httptest.NewRecorder()
-
-        http.SetCookie(recorder, &http.Cookie{Name: "sid", Value: "mySessionId"})
-        req := &http.Request{
-            Header: http.Header{"Cookie": recorder.HeaderMap["Set-Cookie"]},
-        }
-
-        isLogged := IsLogged(req)
+        isLogged := sm.IsExist("mySessionId")
 
         if !isLogged {
             t.Errorf("User shouldn be recognised as logged")
@@ -54,8 +48,7 @@ func TestIsLogged(t *testing.T) {
     t.Run("Should return false if user doesn't have session cookie",
         func(t *testing.T) {
 
-        req := &http.Request{}
-        isLogged := IsLogged(req)
+        isLogged := sm.IsExist("myNotExistingSessionId")
 
         if isLogged {
             t.Errorf("User shouldn't be recognised as logged")
