@@ -15,23 +15,29 @@ type WebServerOptions struct {
 
 type WebServer struct {
 	Router			router.Router
-	SessionManager	session.SessionManager
+	Options 		WebServerOptions
 }
 
-func (s *WebServer) Run(options WebServerOptions) bool {
+func New(options WebServerOptions, notFound router.ControllerHandler) *WebServer {
+	sm := session.New()
+
+	return &WebServer{
+		router.New(sm, notFound),
+		options,
+	}
+}
+
+func (s *WebServer) Run() bool {
 	logger.Init("server")
-    s.SessionManager = session.New()
-    s.Router.New(s.SessionManager)
 
-	staticFileServer := http.FileServer(http.Dir(options.StaticFilesDir))
+	staticFileServer := http.FileServer(http.Dir(s.Options.StaticFilesDir))
 
-	http.Handle(options.StaticFilesUrl,
-        http.StripPrefix(options.StaticFilesUrl, staticFileServer))
+	http.Handle(s.Options.StaticFilesUrl, http.StripPrefix(s.Options.StaticFilesUrl, staticFileServer))
 	http.HandleFunc("/", s.Router.Route)
 
-	logger.Log(logger.INFO,"Server listening on port = " + options.Port+ " ...")
+	logger.Log(logger.INFO,"Server listening on port = " + s.Options.Port+ " ...")
 
-	err := http.ListenAndServe(options.Port, nil)
+	err := http.ListenAndServe(s.Options.Port, nil)
 
 	if err != nil {
 		logger.Log(logger.INFO,"Running server failed: ", err)

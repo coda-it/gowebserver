@@ -9,13 +9,24 @@ import (
 	"github.com/oskarszura/gowebserver/session"
 )
 
-type Router struct {
-    urlRoutes 				[]UrlRoute
-    pageNotFoundController	ControllerHandler
-    sessionManager			session.ISessionManager
+type IRouter interface {
+	Route(w http.ResponseWriter, r *http.Request)
+	AddRoute(w http.ResponseWriter, r *http.Request)
 }
 
-func
+type Router struct {
+	sessionManager			session.ISessionManager
+    urlRoutes 				[]UrlRoute
+    pageNotFoundController	ControllerHandler
+}
+
+func New(sm session.SessionManager, notFound ControllerHandler) Router {
+	return Router{
+		sm,
+		make([]UrlRoute, 0),
+		notFound,
+	}
+}
 
 func (router Router) findRoute (path string) UrlRoute {
 	for _, v := range router.urlRoutes {
@@ -30,11 +41,11 @@ func (router Router) findRoute (path string) UrlRoute {
 	}
 }
 
-func (router Router) New(sm session.ISessionManager) {
+func (router *Router) New(sm session.ISessionManager) {
 	router.sessionManager = sm
 }
 
-func (router Router) Route(w http.ResponseWriter, r *http.Request)  {
+func (router *Router) Route(w http.ResponseWriter, r *http.Request)  {
 	urlPath := r.URL.Path
 	route := router.findRoute(urlPath)
 	params := make(map[string]string)
@@ -57,7 +68,7 @@ func (router Router) Route(w http.ResponseWriter, r *http.Request)  {
 	routeHandler(w, r, *urlOptions, router.sessionManager)
 }
 
-func (router Router) AddRoute(urlPattern string, pathHandler ControllerHandler) {
+func (router *Router) AddRoute(urlPattern string, pathHandler ControllerHandler) {
 
 	params := make(map[string]int)
 	pathRegExp := url.UrlPatternToRegExp(urlPattern)
@@ -82,6 +93,6 @@ func (router Router) AddRoute(urlPattern string, pathHandler ControllerHandler) 
 	})
 }
 
-func (router Router) AddNotFoundRoute(pathHandler ControllerHandler) {
+func (router *Router) AddNotFoundRoute(pathHandler ControllerHandler) {
 	router.pageNotFoundController = pathHandler
 }

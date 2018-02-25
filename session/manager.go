@@ -25,7 +25,6 @@ func (s SessionManager) Create(sessionId string) Session {
     session := Session {
         Variables: make(map[string]interface{}),
     }
-    logger.Log(logger.INFO,"----- s.sessions ", s.sessions)
 
     s.sessions[sessionId] = session
 
