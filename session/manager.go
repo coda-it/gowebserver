@@ -1,7 +1,5 @@
 package session
 
-import "github.com/oskarszura/gowebserver/utils/logger"
-
 type ISessionManager interface {
     IsExist(string) bool
     Create(string)  Session

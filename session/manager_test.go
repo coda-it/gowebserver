@@ -5,12 +5,12 @@ import (
     "reflect"
 )
 
-func TestInitializeSessions(t *testing.T) {
-    t.Run("Should initialize 'session' singleton", func(t *testing.T) {
-        Init()
+func TestNew(t *testing.T) {
+    t.Run("Should initialize session manager", func(t *testing.T) {
+        sm := New()
         expectedSessions := make(map[string]Session)
 
-        isInitialized := reflect.DeepEqual(sessions, expectedSessions)
+        isInitialized := reflect.DeepEqual(sm.sessions, expectedSessions)
 
         if !isInitialized {
             t.Errorf("Sessions array not initialized")
@@ -20,7 +20,8 @@ func TestInitializeSessions(t *testing.T) {
 
 func TestCreateSession(t *testing.T) {
     t.Run("Should create session", func(t *testing.T) {
-        createdSession := Create("mySessionId")
+        sm := New()
+        createdSession := sm.Create("mySessionId")
 
         isSessionType := reflect.TypeOf(createdSession) == reflect.TypeOf(Session{})
 
@@ -31,10 +32,13 @@ func TestCreateSession(t *testing.T) {
 }
 
 func TestIsExist(t *testing.T) {
+    sm := New()
+    sm.Create("mySessionId")
+
     t.Run("Should return true if user have session cookie which is " +
         "persisted in singleton", func(t *testing.T) {
 
-        isLogged := IsExist("mySessionId")
+        isLogged := sm.IsExist("mySessionId")
 
         if !isLogged {
             t.Errorf("User shouldn be recognised as logged")
@@ -44,7 +48,7 @@ func TestIsExist(t *testing.T) {
     t.Run("Should return false if user doesn't have session cookie",
         func(t *testing.T) {
 
-        isLogged := IsExist("myNotExistingSessionId")
+        isLogged := sm.IsExist("myNotExistingSessionId")
 
         if isLogged {
             t.Errorf("User shouldn't be recognised as logged")
