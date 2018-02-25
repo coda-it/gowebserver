@@ -92,7 +92,3 @@ func (router *Router) AddRoute(urlPattern string, pathHandler ControllerHandler)
 		params: params,
 	})
 }
-
-func (router *Router) AddNotFoundRoute(pathHandler ControllerHandler) {
-	router.pageNotFoundController = pathHandler
-}
