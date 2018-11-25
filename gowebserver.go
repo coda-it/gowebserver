@@ -1,10 +1,10 @@
 package gowebserver
 
 import (
-	"net/http"
-    "github.com/oskarszura/gowebserver/router"
-    "github.com/oskarszura/gowebserver/session"
-	"github.com/oskarszura/gowebserver/utils/logger"
+    "net/http"
+    "github.com/coda-it/gowebserver/router"
+    "github.com/coda-it/gowebserver/session"
+    "github.com/coda-it/gowebserver/utils/logger"
 )
 
 type WebServerOptions struct {

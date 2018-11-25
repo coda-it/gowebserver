@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REPOSITORY=http://github.com/oskarszura/gowebserver
+REPOSITORY=http://github.com/coda-it/gowebserver
 NEWER_TAG=$(git tag | tail -r | sed -n 1p)
 OLDER_TAG=$(git tag | tail -r | sed -n 2p)
 HEADER="# Changelog from $NEWER_TAG"
