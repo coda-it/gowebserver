@@ -4,9 +4,9 @@ import (
 	"regexp"
 	"strings"
 	"net/http"
-	"github.com/oskarszura/gowebserver/utils/url"
-	"github.com/oskarszura/gowebserver/utils/logger"
-	"github.com/oskarszura/gowebserver/session"
+	"github.com/coda-it/gowebserver/utils/url"
+	"github.com/coda-it/gowebserver/utils/logger"
+	"github.com/coda-it/gowebserver/session"
 )
 
 type IRouter interface {

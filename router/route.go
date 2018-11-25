@@ -2,7 +2,7 @@ package router
 
 import (
     "net/http"
-    "github.com/oskarszura/gowebserver/session"
+    "github.com/coda-it/gowebserver/session"
 )
 
 type UrlOptions struct {
