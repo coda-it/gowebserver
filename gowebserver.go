@@ -46,3 +46,7 @@ func (s *WebServer) Run() bool {
 
 	return true
 }
+
+func (s *WebServer) AddDataSource(name string, ds store.IDataSource) {
+	s.Router.AddDataSource(name, ds)
+}
