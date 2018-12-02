@@ -14,6 +14,14 @@ type Store struct {
 	dataSources	map[string]IDataSource
 }
 
+func New() Store {
+	return Store{}
+}
+
+func (s *Store) AddDataSource(name string, ds IDataSource) {
+	s.dataSources[name] = ds
+}
+
 func (s *Store) Add(collection string, key string, value string) {
 	s.dataSources[collection].Add(key, value)
 }

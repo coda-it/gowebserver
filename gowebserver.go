@@ -5,6 +5,7 @@ import (
     "github.com/coda-it/gowebserver/router"
     "github.com/coda-it/gowebserver/session"
     "github.com/coda-it/gowebserver/utils/logger"
+	"github.com/coda-it/gowebserver/store"
 )
 
 type WebServerOptions struct {
