@@ -7,6 +7,7 @@ import (
 	"github.com/coda-it/gowebserver/utils/url"
 	"github.com/coda-it/gowebserver/utils/logger"
 	"github.com/coda-it/gowebserver/session"
+	"github.com/coda-it/gowebserver/store"
 )
 
 type IRouter interface {
@@ -15,16 +16,18 @@ type IRouter interface {
 }
 
 type Router struct {
-	sessionManager			session.ISessionManager
-    urlRoutes 				[]UrlRoute
+    sessionManager		session.ISessionManager
+    urlRoutes 			[]UrlRoute
     pageNotFoundController	ControllerHandler
+    store			store.IStore
 }
 
 func New(sm session.SessionManager, notFound ControllerHandler) Router {
 	return Router{
-		sm,
-		make([]UrlRoute, 0),
-		notFound,
+		sessionManager: sm,
+		urlRoutes: make([]UrlRoute, 0),
+		pageNotFoundController: notFound,
+		store: store.New(),
 	}
 }
 
@@ -65,11 +68,10 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request)  {
         route.urlRegExp)
 
 	routeHandler := route.handler
-	routeHandler(w, r, *urlOptions, router.sessionManager)
+	routeHandler(w, r, *urlOptions, router.sessionManager, router.store)
 }
 
 func (router *Router) AddRoute(urlPattern string, pathHandler ControllerHandler) {
-
 	params := make(map[string]int)
 	pathRegExp := url.UrlPatternToRegExp(urlPattern)
 
@@ -91,4 +93,8 @@ func (router *Router) AddRoute(urlPattern string, pathHandler ControllerHandler)
 		handler: pathHandler,
 		params: params,
 	})
+}
+
+func (router *Router) AddDataSource(name string, ds interface{}) {
+	router.store.AddDataSource(name, ds)
 }
