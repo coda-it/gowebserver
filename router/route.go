@@ -10,7 +10,7 @@ type UrlOptions struct {
     Params map[string]string
 }
 
-type ControllerHandler func(http.ResponseWriter, *http.Request, UrlOptions, session.ISessionManager, store.Store)
+type ControllerHandler func(http.ResponseWriter, *http.Request, UrlOptions, session.ISessionManager, store.IStore)
 
 type UrlRoute struct {
     urlRegExp       string

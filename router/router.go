@@ -19,7 +19,7 @@ type Router struct {
     sessionManager		session.ISessionManager
     urlRoutes 			[]UrlRoute
     pageNotFoundController	ControllerHandler
-    store			store.Store
+    store			store.IStore
 }
 
 func New(sm session.SessionManager, notFound ControllerHandler) Router {
@@ -95,6 +95,6 @@ func (router *Router) AddRoute(urlPattern string, pathHandler ControllerHandler)
 	})
 }
 
-func (router *Router) AddDataSource(name string, ds store.IDataSource) {
+func (router *Router) AddDataSource(name string, ds interface{}) {
 	router.store.AddDataSource(name, ds)
 }

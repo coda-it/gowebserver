@@ -1,31 +1,24 @@
 package store
 
 type IStore interface {
-	Add(string, string, string)
-	Get(string, string) string
-}
-
-type IDataSource interface {
-	Add(string, string)
-	Get(string) string
+	AddDataSource(string, interface{})
+	GetDataSource(string) interface{}
 }
 
 type Store struct {
-	dataSources	map[string]IDataSource
+	dataSources	map[string]interface{}
 }
 
 func New() Store {
-	return Store{}
+	return Store{
+		dataSources: make(map[string]interface{}),
+	}
 }
 
-func (s *Store) AddDataSource(name string, ds IDataSource) {
+func (s Store) AddDataSource(name string, ds interface{}) {
 	s.dataSources[name] = ds
 }
 
-func (s *Store) Add(collection string, key string, value string) {
-	s.dataSources[collection].Add(key, value)
-}
-
-func (s* Store) Get(collection string, key string) string {
-	return s.dataSources[collection].Get(key)
+func (s Store) GetDataSource(collection string) interface{} {
+	return s.dataSources[collection]
 }

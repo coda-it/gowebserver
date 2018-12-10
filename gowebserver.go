@@ -5,7 +5,6 @@ import (
     "github.com/coda-it/gowebserver/router"
     "github.com/coda-it/gowebserver/session"
     "github.com/coda-it/gowebserver/utils/logger"
-	"github.com/coda-it/gowebserver/store"
 )
 
 type WebServerOptions struct {
@@ -48,6 +47,6 @@ func (s *WebServer) Run() bool {
 	return true
 }
 
-func (s *WebServer) AddDataSource(name string, ds store.IDataSource) {
+func (s *WebServer) AddDataSource(name string, ds interface{}) {
 	s.Router.AddDataSource(name, ds)
 }
