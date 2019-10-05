@@ -6,7 +6,7 @@ type IStore interface {
 }
 
 type Store struct {
-	dataSources	map[string]interface{}
+	dataSources map[string]interface{}
 }
 
 func New() Store {

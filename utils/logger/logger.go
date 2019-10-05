@@ -6,15 +6,14 @@ import (
 )
 
 var (
-	logger	*log.Logger
+	logger *log.Logger
 )
 
 const (
-	DEBUG	= "debug"
-	INFO	= "info"
-	ERROR	= "error"
+	DEBUG = "debug"
+	INFO  = "info"
+	ERROR = "error"
 )
-
 
 func buildPrefix(prefix string) string {
 	return prefix + ": "

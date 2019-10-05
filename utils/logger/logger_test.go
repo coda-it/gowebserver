@@ -1,9 +1,9 @@
 package logger
 
 import (
-	"testing"
 	"log"
 	"os"
+	"testing"
 )
 
 func TestSetup(t *testing.T) {

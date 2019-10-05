@@ -1,3 +1,24 @@
+GOCMD=go
+GOLINT=golint
+GOFMT=gofmt
+
+.DEFAULT_GOAL := all
+
+.PHONY: install
+install:
+	$(shell cd /; $(GOCMD) get -u golang.org/x/lint/golint)
+	$(GOCMD) mod vendor
+
+.PHONY: lint
+lint:
+	./scripts/gofmt_test.sh
+	$(GOLINT) ./... | grep -v vendor/ && exit 1 || exit 0
+	$(GOCMD) vet -mod=vendor ./... | grep -v vendor/ && exit 1 || exit 0
+
+.PHONY: fix
+fix:
+	$(GOFMT) -w .
+
 .PHONY: version
 version:
 	git tag $(V)

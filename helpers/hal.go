@@ -5,7 +5,7 @@ import (
 )
 
 // ServeHal - serves HAL compliant responses
-func ServeHal(data interface{}, embedded interface{}, links interface {}) map[string]interface{} {
+func ServeHal(data interface{}, embedded interface{}, links interface{}) map[string]interface{} {
 	var res map[string]interface{}
 
 	jsonData, _ := json.Marshal(data)

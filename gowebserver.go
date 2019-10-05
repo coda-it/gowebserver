@@ -1,21 +1,21 @@
 package gowebserver
 
 import (
-    "net/http"
-    "github.com/coda-it/gowebserver/router"
-    "github.com/coda-it/gowebserver/session"
-    "github.com/coda-it/gowebserver/utils/logger"
+	"github.com/coda-it/gowebserver/router"
+	"github.com/coda-it/gowebserver/session"
+	"github.com/coda-it/gowebserver/utils/logger"
+	"net/http"
 )
 
 type WebServerOptions struct {
-    Port            string
-    StaticFilesUrl  string
-    StaticFilesDir  string
+	Port           string
+	StaticFilesUrl string
+	StaticFilesDir string
 }
 
 type WebServer struct {
-	Router			router.Router
-	Options 		WebServerOptions
+	Router  router.Router
+	Options WebServerOptions
 }
 
 func New(options WebServerOptions, notFound router.ControllerHandler) *WebServer {
@@ -35,12 +35,12 @@ func (s *WebServer) Run() bool {
 	http.Handle(s.Options.StaticFilesUrl, http.StripPrefix(s.Options.StaticFilesUrl, staticFileServer))
 	http.HandleFunc("/", s.Router.Route)
 
-	logger.Log(logger.INFO,"Server listening on port = " + s.Options.Port+ " ...")
+	logger.Log(logger.INFO, "Server listening on port = "+s.Options.Port+" ...")
 
 	err := http.ListenAndServe(s.Options.Port, nil)
 
 	if err != nil {
-		logger.Log(logger.INFO,"Running server failed: ", err)
+		logger.Log(logger.INFO, "Running server failed: ", err)
 		return false
 	}
 

@@ -7,13 +7,13 @@ import (
 func TestServeHal(t *testing.T) {
 	t.Run("Should transform data into HAL compliant response", func(t *testing.T) {
 		data := struct {
-			Prop1    string  `json:"prop1"`
-		} {
+			Prop1 string `json:"prop1"`
+		}{
 			"value1",
 		}
 
-		links := struct {}{}
-		embedded := struct {}{}
+		links := struct{}{}
+		embedded := struct{}{}
 
 		res := ServeHal(data, links, embedded)
 
