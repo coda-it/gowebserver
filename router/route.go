@@ -6,13 +6,16 @@ import (
 	"net/http"
 )
 
-type UrlOptions struct {
+// URLOptions - url options type
+type URLOptions struct {
 	Params map[string]string
 }
 
-type ControllerHandler func(http.ResponseWriter, *http.Request, UrlOptions, session.ISessionManager, store.IStore)
+// ControllerHandler - handler type
+type ControllerHandler func(http.ResponseWriter, *http.Request, URLOptions, session.ISessionManager, store.IStore)
 
-type UrlRoute struct {
+// URLRoute - url route type
+type URLRoute struct {
 	urlRegExp string
 	method    string
 	handler   ControllerHandler

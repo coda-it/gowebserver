@@ -9,7 +9,7 @@ func TestUrlPatternToRegExp(t *testing.T) {
 		finalUrl := UrlPatternToRegExp(inputUrl)
 
 		if finalUrl != `^\/path1\/path2(\/([0-9a-zA-Z])*)?\/$` {
-			t.Errorf("Transformed url is not correct, got: %d, want: %d.",
+			t.Errorf("Transformed url is not correct, got: %s, want: %s.",
 				finalUrl, expectedRegExp)
 		}
 	})

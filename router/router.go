@@ -10,47 +10,53 @@ import (
 	"strings"
 )
 
+// IRouter - router interface
 type IRouter interface {
 	Route(w http.ResponseWriter, r *http.Request)
 	AddRoute(w http.ResponseWriter, r *http.Request)
 }
 
+// Router - router struct
 type Router struct {
 	sessionManager         session.ISessionManager
-	urlRoutes              []UrlRoute
+	urlRoutes              []URLRoute
 	pageNotFoundController ControllerHandler
 	store                  store.IStore
 }
 
+// New - factory for router
 func New(sm session.SessionManager, notFound ControllerHandler) Router {
 	return Router{
 		sessionManager:         sm,
-		urlRoutes:              make([]UrlRoute, 0),
+		urlRoutes:              make([]URLRoute, 0),
 		pageNotFoundController: notFound,
 		store:                  store.New(),
 	}
 }
 
-func (router Router) findRoute(path string) UrlRoute {
+func (router Router) findRoute(path string, method string) URLRoute {
 	for _, v := range router.urlRoutes {
 		pathRegExp := regexp.MustCompile(v.urlRegExp)
 
-		if pathRegExp.MatchString(path) {
+		if pathRegExp.MatchString(path) && (v.method == method || v.method == "ALL") {
 			return v
 		}
 	}
-	return UrlRoute{
+	return URLRoute{
 		handler: router.pageNotFoundController,
 	}
 }
 
+// New - factory for session manager
 func (router *Router) New(sm session.ISessionManager) {
 	router.sessionManager = sm
 }
 
+// Route - routes all incomming requests
 func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 	urlPath := r.URL.Path
-	route := router.findRoute(urlPath)
+	route := router.findRoute(urlPath, r.Method)
+
 	params := make(map[string]string)
 	pathItems := strings.Split(urlPath, "/")
 
@@ -60,7 +66,7 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	urlOptions := &UrlOptions{
+	urlOptions := &URLOptions{
 		params,
 	}
 
@@ -71,7 +77,8 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 	routeHandler(w, r, *urlOptions, router.sessionManager, router.store)
 }
 
-func (router *Router) AddRoute(urlPattern string, pathHandler ControllerHandler) {
+// AddRoute - adds route
+func (router *Router) AddRoute(urlPattern string, method string, pathHandler ControllerHandler) {
 	params := make(map[string]int)
 	pathRegExp := url.UrlPatternToRegExp(urlPattern)
 
@@ -88,13 +95,15 @@ func (router *Router) AddRoute(urlPattern string, pathHandler ControllerHandler)
 		}
 	}
 
-	router.urlRoutes = append(router.urlRoutes, UrlRoute{
+	router.urlRoutes = append(router.urlRoutes, URLRoute{
 		urlRegExp: pathRegExp,
+		method:    method,
 		handler:   pathHandler,
 		params:    params,
 	})
 }
 
+// AddDataSource - adds data source
 func (router *Router) AddDataSource(name string, ds interface{}) {
 	router.store.AddDataSource(name, ds)
 }

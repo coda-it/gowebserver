@@ -9,6 +9,10 @@ install:
 	$(shell cd /; $(GOCMD) get -u golang.org/x/lint/golint)
 	$(GOCMD) mod vendor
 
+.PHONY: test
+test:
+	$(GOCMD) test -mod=vendor ./...
+
 .PHONY: lint
 lint:
 	./scripts/gofmt_test.sh
