@@ -24,6 +24,10 @@ func Init(prefix string) {
 }
 
 func Log(level string, message string, args ...interface{}) {
+	if logger == nil {
+		return
+	}
+
 	var logs []interface{}
 	logs = append(logs, message)
 
