@@ -25,7 +25,7 @@ type Router struct {
 }
 
 // New - factory for router
-func New(sm session.SessionManager, notFound ControllerHandler) Router {
+func New(sm session.Manager, notFound ControllerHandler) Router {
 	return Router{
 		sessionManager:         sm,
 		urlRoutes:              make([]URLRoute, 0),
@@ -80,7 +80,7 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 // AddRoute - adds route
 func (router *Router) AddRoute(urlPattern string, method string, pathHandler ControllerHandler) {
 	params := make(map[string]int)
-	pathRegExp := url.UrlPatternToRegExp(urlPattern)
+	pathRegExp := url.PatternToRegExp(urlPattern)
 
 	urlPathItems := strings.Split(urlPattern, "/")
 

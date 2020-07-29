@@ -56,17 +56,37 @@ func TestNew(t *testing.T) {
 		router.AddRoute("/api/user", "ALL", contentHandler(t, content))
 
 		jsonBytes, _ := json.Marshal(struct{}{})
-		request, _ := http.NewRequest(http.MethodPost, "/api/user", bytes.NewReader(jsonBytes))
-		writer := httptest.NewRecorder()
 
-		router.Route(writer, request)
+		requestGet, _ := http.NewRequest(http.MethodGet, "/api/user", bytes.NewReader(jsonBytes))
+		writerGet := httptest.NewRecorder()
+		router.Route(writerGet, requestGet)
+		if bytes.Compare(writerGet.Body.Bytes(), []byte(content)) != 0 {
+			t.Errorf("Method GET not handled")
+		}
 
-		if bytes.Compare(writer.Body.Bytes(), []byte(content)) != 0 {
-			t.Errorf("Route not handled")
+		requestPost, _ := http.NewRequest(http.MethodPost, "/api/user", bytes.NewReader(jsonBytes))
+		writerPost := httptest.NewRecorder()
+		router.Route(writerPost, requestPost)
+		if bytes.Compare(writerPost.Body.Bytes(), []byte(content)) != 0 {
+			t.Errorf("Method POST not handled")
+		}
+
+		requestDelete, _ := http.NewRequest(http.MethodDelete, "/api/user", bytes.NewReader(jsonBytes))
+		writerDelete := httptest.NewRecorder()
+		router.Route(writerDelete, requestDelete)
+		if bytes.Compare(writerDelete.Body.Bytes(), []byte(content)) != 0 {
+			t.Errorf("Method DELETE not handled")
+		}
+
+		requestPatch, _ := http.NewRequest(http.MethodPatch, "/api/user", bytes.NewReader(jsonBytes))
+		writerPatch := httptest.NewRecorder()
+		router.Route(writerPatch, requestPatch)
+		if bytes.Compare(writerDelete.Body.Bytes(), []byte(content)) != 0 {
+			t.Errorf("Method PATCH not handled")
 		}
 	})
 
-	t.Run("Should handle route with GET method", func(t *testing.T) {
+	t.Run("Should handle only request with GET method", func(t *testing.T) {
 		sm := session.New()
 
 		router := New(sm, handlerCallback)
@@ -80,17 +100,23 @@ func TestNew(t *testing.T) {
 		router.AddRoute("/api/user", "GET", contentHandler(t, content))
 
 		jsonBytes, _ := json.Marshal(struct{}{})
+
 		request, _ := http.NewRequest(http.MethodGet, "/api/user", bytes.NewReader(jsonBytes))
 		writer := httptest.NewRecorder()
-
 		router.Route(writer, request)
-
 		if bytes.Compare(writer.Body.Bytes(), []byte(content)) != 0 {
-			t.Errorf("Route not handled")
+			t.Errorf("Method GET not handled")
+		}
+
+		requestOther, _ := http.NewRequest(http.MethodPost, "/api/user", bytes.NewReader(jsonBytes))
+		writerOther := httptest.NewRecorder()
+		router.Route(writerOther, requestOther)
+		if writer.Body == nil {
+			t.Errorf("Method POST should not handled")
 		}
 	})
 
-	t.Run("Should handle route with POST method", func(t *testing.T) {
+	t.Run("Should handle only request with POST method", func(t *testing.T) {
 		sm := session.New()
 
 		router := New(sm, handlerCallback)
@@ -104,37 +130,19 @@ func TestNew(t *testing.T) {
 		router.AddRoute("/api/user", "POST", contentHandler(t, content))
 
 		jsonBytes, _ := json.Marshal(struct{}{})
+
 		request, _ := http.NewRequest(http.MethodPost, "/api/user", bytes.NewReader(jsonBytes))
 		writer := httptest.NewRecorder()
-
 		router.Route(writer, request)
-
 		if bytes.Compare(writer.Body.Bytes(), []byte(content)) != 0 {
 			t.Errorf("Route not handled")
 		}
-	})
 
-	t.Run("Should not handle added route when HTTP methods are different", func(t *testing.T) {
-		sm := session.New()
-
-		router := New(sm, handlerCallback)
-
-		if len(router.urlRoutes) != 0 {
-			t.Errorf("Router should have no routes")
-		}
-
-		content := "handler executed"
-
-		router.AddRoute("/api/user", "GET", contentHandler(t, content))
-
-		jsonBytes, _ := json.Marshal(struct{}{})
-		request, _ := http.NewRequest(http.MethodPost, "/api/user", bytes.NewReader(jsonBytes))
-		writer := httptest.NewRecorder()
-
-		router.Route(writer, request)
-
-		if bytes.Compare(writer.Body.Bytes(), []byte(content)) == 0 {
-			t.Errorf("Route shouldn't be handled")
+		requestOther, _ := http.NewRequest(http.MethodGet, "/api/user", bytes.NewReader(jsonBytes))
+		writerOther := httptest.NewRecorder()
+		router.Route(writerOther, requestOther)
+		if writer.Body == nil {
+			t.Errorf("Method GET should not handled")
 		}
 	})
 }

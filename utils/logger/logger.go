@@ -10,8 +10,11 @@ var (
 )
 
 const (
+	// DEBUG - debug mode
 	DEBUG = "debug"
-	INFO  = "info"
+	// INFO - info mode
+	INFO = "info"
+	// ERROR - error mode
 	ERROR = "error"
 )
 
@@ -19,10 +22,12 @@ func buildPrefix(prefix string) string {
 	return prefix + ": "
 }
 
+// Init - initializes logger
 func Init(prefix string) {
 	logger = log.New(os.Stdout, buildPrefix(prefix), log.LstdFlags)
 }
 
+// Log - logs info to the terminal
 func Log(level string, message string, args ...interface{}) {
 	if logger == nil {
 		return
