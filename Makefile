@@ -4,10 +4,17 @@ GOFMT=gofmt
 
 .DEFAULT_GOAL := all
 
+all :
+.PHONY : all
+
 .PHONY: install
 install:
 	$(shell cd /; $(GOCMD) get -u golang.org/x/lint/golint)
 	$(GOCMD) mod vendor
+
+.PHONY: test
+test:
+	$(GOCMD) test -mod=vendor ./...
 
 .PHONY: lint
 lint:
