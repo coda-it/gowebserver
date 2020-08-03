@@ -21,11 +21,11 @@ type WebServer struct {
 }
 
 // New - factory for WebServer entity
-func New(options WebServerOptions, notFound router.ControllerHandler) *WebServer {
+func New(options WebServerOptions, notFound router.ControllerHandler, sessionFallbackURL string) *WebServer {
 	sm := session.New()
 
 	return &WebServer{
-		router.New(sm, notFound),
+		router.New(sm, notFound, sessionFallbackURL),
 		options,
 	}
 }

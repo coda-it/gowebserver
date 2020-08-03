@@ -20,4 +20,5 @@ type URLRoute struct {
 	method    string
 	handler   ControllerHandler
 	params    map[string]int
+	protected bool
 }
