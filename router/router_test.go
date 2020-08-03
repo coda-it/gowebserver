@@ -27,13 +27,13 @@ func TestNew(t *testing.T) {
 	t.Run("Should add route", func(t *testing.T) {
 		sm := session.New()
 
-		router := New(sm, handlerCallback)
+		router := New(sm, handlerCallback, "/login")
 
 		if len(router.urlRoutes) != 0 {
 			t.Errorf("Router should have no routes")
 		}
 
-		router.AddRoute("/api/user", "ALL", handlerCallback)
+		router.AddRoute("/api/user", "ALL", false, handlerCallback)
 
 		addedRoute := router.urlRoutes[0]
 
@@ -45,7 +45,7 @@ func TestNew(t *testing.T) {
 	t.Run("Should handle route with ALL method", func(t *testing.T) {
 		sm := session.New()
 
-		router := New(sm, handlerCallback)
+		router := New(sm, handlerCallback, "/login")
 
 		if len(router.urlRoutes) != 0 {
 			t.Errorf("Router should have no routes")
@@ -53,7 +53,7 @@ func TestNew(t *testing.T) {
 
 		content := "handler executed"
 
-		router.AddRoute("/api/user", "ALL", contentHandler(t, content))
+		router.AddRoute("/api/user", "ALL", false, contentHandler(t, content))
 
 		jsonBytes, _ := json.Marshal(struct{}{})
 
@@ -89,7 +89,7 @@ func TestNew(t *testing.T) {
 	t.Run("Should handle only request with GET method", func(t *testing.T) {
 		sm := session.New()
 
-		router := New(sm, handlerCallback)
+		router := New(sm, handlerCallback, "/login")
 
 		if len(router.urlRoutes) != 0 {
 			t.Errorf("Router should have no routes")
@@ -97,7 +97,7 @@ func TestNew(t *testing.T) {
 
 		content := "handler executed"
 
-		router.AddRoute("/api/user", "GET", contentHandler(t, content))
+		router.AddRoute("/api/user", "GET", false, contentHandler(t, content))
 
 		jsonBytes, _ := json.Marshal(struct{}{})
 
@@ -119,7 +119,7 @@ func TestNew(t *testing.T) {
 	t.Run("Should handle only request with POST method", func(t *testing.T) {
 		sm := session.New()
 
-		router := New(sm, handlerCallback)
+		router := New(sm, handlerCallback, "/login")
 
 		if len(router.urlRoutes) != 0 {
 			t.Errorf("Router should have no routes")
@@ -127,7 +127,7 @@ func TestNew(t *testing.T) {
 
 		content := "handler executed"
 
-		router.AddRoute("/api/user", "POST", contentHandler(t, content))
+		router.AddRoute("/api/user", "POST", false, contentHandler(t, content))
 
 		jsonBytes, _ := json.Marshal(struct{}{})
 
@@ -143,6 +143,59 @@ func TestNew(t *testing.T) {
 		router.Route(writerOther, requestOther)
 		if writer.Body == nil {
 			t.Errorf("Method GET should not handled")
+		}
+	})
+
+	t.Run("Should redirect to the fallback page when session doesn't exist", func(t *testing.T) {
+		sm := session.New()
+
+		router := New(sm, handlerCallback, "/login")
+
+		if len(router.urlRoutes) != 0 {
+			t.Errorf("Router should have no routes")
+		}
+
+		content := "handler executed"
+
+		router.AddRoute("/user", "GET", true, contentHandler(t, content))
+
+		jsonBytes, _ := json.Marshal(struct{}{})
+
+		request, _ := http.NewRequest(http.MethodGet, "/user", bytes.NewReader(jsonBytes))
+		writer := httptest.NewRecorder()
+		router.Route(writer, request)
+
+		if writer.Code != 303 && writer.Header().Get("Location") != "/login" {
+			t.Errorf("Route not handled")
+		}
+	})
+
+	t.Run("Should handle protected route when session exists", func(t *testing.T) {
+		sm := session.New()
+		cookieVal := "zgdwoz6u1O-Qun-UzQfdZwMQ7RuUuX8NgUkkDg-jlm0S8Zflp-QxbbNhwEokf4px_c2KKQ."
+		sm.Create(cookieVal)
+
+		router := New(sm, handlerCallback, "/login")
+
+		if len(router.urlRoutes) != 0 {
+			t.Errorf("Router should have no routes")
+		}
+
+		content := "handler executed"
+
+		router.AddRoute("/user", "GET", true, contentHandler(t, content))
+
+		jsonBytes, _ := json.Marshal(struct{}{})
+
+		request, _ := http.NewRequest(http.MethodGet, "/user", bytes.NewReader(jsonBytes))
+		request.Header.Set("Cookie", session.SessionKey+"="+cookieVal+";")
+
+		writer := httptest.NewRecorder()
+
+		router.Route(writer, request)
+
+		if bytes.Compare(writer.Body.Bytes(), []byte(content)) != 0 {
+			t.Errorf("Method GET not handled")
 		}
 	})
 }

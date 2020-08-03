@@ -22,15 +22,18 @@ type Router struct {
 	urlRoutes              []URLRoute
 	pageNotFoundController ControllerHandler
 	store                  store.IStore
+	// SessionFallbackURL - when no existing session is detected, router should route here
+	SessionFallbackURL string
 }
 
 // New - factory for router
-func New(sm session.Manager, notFound ControllerHandler) Router {
+func New(sm session.Manager, notFound ControllerHandler, sessionFallbackURL string) Router {
 	return Router{
 		sessionManager:         sm,
 		urlRoutes:              make([]URLRoute, 0),
 		pageNotFoundController: notFound,
 		store:                  store.New(),
+		SessionFallbackURL:     sessionFallbackURL,
 	}
 }
 
@@ -73,12 +76,20 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 	logger.Log(logger.INFO, "Navigating to url = "+urlPath+" vs route = "+
 		route.urlRegExp)
 
+	if route.protected {
+		sid, err := session.GetSessionID(r)
+
+		if err != nil || router.sessionManager.IsExist(sid) == false {
+			http.Redirect(w, r, router.SessionFallbackURL, http.StatusSeeOther)
+		}
+	}
+
 	routeHandler := route.handler
 	routeHandler(w, r, *urlOptions, router.sessionManager, router.store)
 }
 
 // AddRoute - adds route
-func (router *Router) AddRoute(urlPattern string, method string, pathHandler ControllerHandler) {
+func (router *Router) AddRoute(urlPattern string, method string, protected bool, pathHandler ControllerHandler) {
 	params := make(map[string]int)
 	pathRegExp := url.PatternToRegExp(urlPattern)
 
@@ -100,6 +111,7 @@ func (router *Router) AddRoute(urlPattern string, method string, pathHandler Con
 		method:    method,
 		handler:   pathHandler,
 		params:    params,
+		protected: protected,
 	})
 }
 
