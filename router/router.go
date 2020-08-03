@@ -79,7 +79,7 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 	if route.protected {
 		sid, err := session.GetSessionID(r)
 
-		if err != nil && router.sessionManager.IsExist(sid) {
+		if err != nil || router.sessionManager.IsExist(sid) == false {
 			http.Redirect(w, r, router.SessionFallbackURL, http.StatusSeeOther)
 		}
 	}

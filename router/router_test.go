@@ -145,4 +145,57 @@ func TestNew(t *testing.T) {
 			t.Errorf("Method GET should not handled")
 		}
 	})
+
+	t.Run("Should redirect to the fallback page when session doesn't exist", func(t *testing.T) {
+		sm := session.New()
+
+		router := New(sm, handlerCallback, "/login")
+
+		if len(router.urlRoutes) != 0 {
+			t.Errorf("Router should have no routes")
+		}
+
+		content := "handler executed"
+
+		router.AddRoute("/user", "GET", true, contentHandler(t, content))
+
+		jsonBytes, _ := json.Marshal(struct{}{})
+
+		request, _ := http.NewRequest(http.MethodGet, "/user", bytes.NewReader(jsonBytes))
+		writer := httptest.NewRecorder()
+		router.Route(writer, request)
+
+		if writer.Code != 303 && writer.Header().Get("Location") != "/login" {
+			t.Errorf("Route not handled")
+		}
+	})
+
+	t.Run("Should handle protected route when session exists", func(t *testing.T) {
+		sm := session.New()
+		cookieVal := "zgdwoz6u1O-Qun-UzQfdZwMQ7RuUuX8NgUkkDg-jlm0S8Zflp-QxbbNhwEokf4px_c2KKQ."
+		sm.Create(cookieVal)
+
+		router := New(sm, handlerCallback, "/login")
+
+		if len(router.urlRoutes) != 0 {
+			t.Errorf("Router should have no routes")
+		}
+
+		content := "handler executed"
+
+		router.AddRoute("/user", "GET", true, contentHandler(t, content))
+
+		jsonBytes, _ := json.Marshal(struct{}{})
+
+		request, _ := http.NewRequest(http.MethodGet, "/user", bytes.NewReader(jsonBytes))
+		request.Header.Set("Cookie", session.SessionKey+"="+cookieVal+";")
+
+		writer := httptest.NewRecorder()
+
+		router.Route(writer, request)
+
+		if bytes.Compare(writer.Body.Bytes(), []byte(content)) != 0 {
+			t.Errorf("Method GET not handled")
+		}
+	})
 }
