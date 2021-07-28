@@ -12,6 +12,8 @@ type WebServerOptions struct {
 	Port           string
 	StaticFilesURL string
 	StaticFilesDir string
+	Cert           string
+	CertPrvKey     string
 }
 
 // WebServer - web server
@@ -41,7 +43,12 @@ func (s *WebServer) Run() bool {
 
 	logger.Log(logger.INFO, "Server listening on port = "+s.Options.Port+" ...")
 
-	err := http.ListenAndServe(s.Options.Port, nil)
+	var err error
+	if s.Options.Cert != "" && s.Options.CertPrvKey != "" {
+		err = http.ListenAndServeTLS(s.Options.Port, s.Options.Cert, s.Options.CertPrvKey, nil)
+	} else {
+		err = http.ListenAndServe(s.Options.Port, nil)
+	}
 
 	if err != nil {
 		logger.Log(logger.INFO, "Running server failed: ", err)
