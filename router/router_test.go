@@ -13,6 +13,10 @@ import (
 func handlerCallback(w http.ResponseWriter, r *http.Request, opt URLOptions, sm session.ISessionManager, s store.IStore) {
 }
 
+func checkerHandler(r *http.Request) bool {
+	return false
+}
+
 func contentHandler(t *testing.T, content string) ControllerHandler {
 	return func(w http.ResponseWriter, r *http.Request, opt URLOptions, sm session.ISessionManager, s store.IStore) {
 		_, err := w.Write([]byte(content))
@@ -33,7 +37,7 @@ func TestNew(t *testing.T) {
 			t.Errorf("Router should have no routes")
 		}
 
-		router.AddRoute("/api/user", "ALL", false, handlerCallback)
+		router.AddRoute("/api/user", "ALL", false, handlerCallback, checkerHandler)
 
 		addedRoute := router.urlRoutes[0]
 
@@ -53,7 +57,7 @@ func TestNew(t *testing.T) {
 
 		content := "handler executed"
 
-		router.AddRoute("/api/user", "ALL", false, contentHandler(t, content))
+		router.AddRoute("/api/user", "ALL", false, contentHandler(t, content), checkerHandler)
 
 		jsonBytes, _ := json.Marshal(struct{}{})
 
@@ -97,7 +101,7 @@ func TestNew(t *testing.T) {
 
 		content := "handler executed"
 
-		router.AddRoute("/api/user", "GET", false, contentHandler(t, content))
+		router.AddRoute("/api/user", "GET", false, contentHandler(t, content), checkerHandler)
 
 		jsonBytes, _ := json.Marshal(struct{}{})
 
@@ -127,7 +131,7 @@ func TestNew(t *testing.T) {
 
 		content := "handler executed"
 
-		router.AddRoute("/api/user", "POST", false, contentHandler(t, content))
+		router.AddRoute("/api/user", "POST", false, contentHandler(t, content), checkerHandler)
 
 		jsonBytes, _ := json.Marshal(struct{}{})
 
@@ -157,7 +161,7 @@ func TestNew(t *testing.T) {
 
 		content := "handler executed"
 
-		router.AddRoute("/user", "GET", true, contentHandler(t, content))
+		router.AddRoute("/user", "GET", true, contentHandler(t, content), checkerHandler)
 
 		jsonBytes, _ := json.Marshal(struct{}{})
 
@@ -170,32 +174,24 @@ func TestNew(t *testing.T) {
 		}
 	})
 
-	t.Run("Should handle protected route when session exists", func(t *testing.T) {
-		sm := session.New()
-		cookieVal := "zgdwoz6u1O-Qun-UzQfdZwMQ7RuUuX8NgUkkDg-jlm0S8Zflp-QxbbNhwEokf4px_c2KKQ."
-		sm.Create(cookieVal)
-
-		router := New(sm, handlerCallback, "/login")
-
-		if len(router.urlRoutes) != 0 {
-			t.Errorf("Router should have no routes")
+	t.Run("Should render to 'not found' page when checker doesn't allow to access route", func(t *testing.T) {
+		checkerHandler := func(r *http.Request) bool {
+			return false
 		}
 
-		content := "handler executed"
-
-		router.AddRoute("/user", "GET", true, contentHandler(t, content))
+		sm := session.New()
+		notFoundContent := "not found handler"
+		router := New(sm, contentHandler(t, notFoundContent), "/login")
+		router.AddRoute("/user", "GET", false, contentHandler(t, "user handler"), checkerHandler)
 
 		jsonBytes, _ := json.Marshal(struct{}{})
-
 		request, _ := http.NewRequest(http.MethodGet, "/user", bytes.NewReader(jsonBytes))
-		request.Header.Set("Cookie", session.SessionKey+"="+cookieVal+";")
-
 		writer := httptest.NewRecorder()
 
 		router.Route(writer, request)
 
-		if bytes.Compare(writer.Body.Bytes(), []byte(content)) != 0 {
-			t.Errorf("Method GET not handled")
+		if bytes.Compare(writer.Body.Bytes(), []byte(notFoundContent)) != 0 {
+			t.Errorf("Handler should not be accessed and blocked by checker")
 		}
 	})
 }
