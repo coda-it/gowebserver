@@ -14,7 +14,7 @@ func handlerCallback(w http.ResponseWriter, r *http.Request, opt URLOptions, sm 
 }
 
 func checkerHandler(r *http.Request) bool {
-	return false
+	return true
 }
 
 func contentHandler(t *testing.T, content string) ControllerHandler {
