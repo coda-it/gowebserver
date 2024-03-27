@@ -58,6 +58,7 @@ func (router *Router) New(sm session.ISessionManager) {
 // Route - routes all incomming requests
 func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 	urlPath := r.URL.Path
+
 	route := router.findRoute(urlPath, r.Method)
 
 	params := make(map[string]string)
@@ -84,12 +85,17 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if route.checkerHandler != nil && !route.checkerHandler(r) {
+		router.pageNotFoundController(w, r, *urlOptions, router.sessionManager, router.store)
+		return
+	}
+
 	routeHandler := route.handler
 	routeHandler(w, r, *urlOptions, router.sessionManager, router.store)
 }
 
 // AddRoute - adds route
-func (router *Router) AddRoute(urlPattern string, method string, protected bool, pathHandler ControllerHandler) {
+func (router *Router) AddRoute(urlPattern string, method string, protected bool, pathHandler ControllerHandler, checkerHandler CheckerHandler) {
 	params := make(map[string]int)
 	pathRegExp := url.PatternToRegExp(urlPattern)
 
@@ -107,11 +113,12 @@ func (router *Router) AddRoute(urlPattern string, method string, protected bool,
 	}
 
 	router.urlRoutes = append(router.urlRoutes, URLRoute{
-		urlRegExp: pathRegExp,
-		method:    method,
-		handler:   pathHandler,
-		params:    params,
-		protected: protected,
+		urlRegExp:      pathRegExp,
+		method:         method,
+		handler:        pathHandler,
+		params:         params,
+		protected:      protected,
+		checkerHandler: checkerHandler,
 	})
 }
 

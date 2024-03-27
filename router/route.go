@@ -14,11 +14,14 @@ type URLOptions struct {
 // ControllerHandler - handler type
 type ControllerHandler func(http.ResponseWriter, *http.Request, URLOptions, session.ISessionManager, store.IStore)
 
+type CheckerHandler func(*http.Request) bool
+
 // URLRoute - url route type
 type URLRoute struct {
-	urlRegExp string
-	method    string
-	handler   ControllerHandler
-	params    map[string]int
-	protected bool
+	urlRegExp      string
+	method         string
+	handler        ControllerHandler
+	params         map[string]int
+	protected      bool
+	checkerHandler CheckerHandler
 }
