@@ -1,0 +1,22 @@
+name: Test
+
+on:
+  pull_request:
+
+env:
+  GO111MODULE: on
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@master
+        with:
+          ref: ${{ github.ref }}
+      - name: Install dependencies
+        run: make install
+      - name: Lint
+        run: make lint
+      - name: Test
+        run: make test
