@@ -37,11 +37,14 @@ func New(sm session.Manager, notFound ControllerHandler, sessionFallbackURL stri
 	}
 }
 
-func (router Router) findRoute(path string, method string) URLRoute {
+func (router Router) findRoute(req *http.Request) URLRoute {
+	path := req.URL.Path
+	method := req.Method
+
 	for _, v := range router.urlRoutes {
 		pathRegExp := regexp.MustCompile(v.urlRegExp)
 
-		if pathRegExp.MatchString(path) && (v.method == method || v.method == "ALL") {
+		if pathRegExp.MatchString(path) && (v.method == method || v.method == "ALL") && v.checkerHandler(req) {
 			return v
 		}
 	}
@@ -59,7 +62,7 @@ func (router *Router) New(sm session.ISessionManager) {
 func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 	urlPath := r.URL.Path
 
-	route := router.findRoute(urlPath, r.Method)
+	route := router.findRoute(r)
 
 	params := make(map[string]string)
 	pathItems := strings.Split(urlPath, "/")
