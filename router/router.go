@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // IRouter - router interface
@@ -20,6 +21,7 @@ type IRouter interface {
 type Router struct {
 	sessionManager         session.ISessionManager
 	urlRoutes              []URLRoute
+	urlRoutesMutex         *sync.RWMutex
 	pageNotFoundController ControllerHandler
 	store                  store.IStore
 	// SessionFallbackURL - when no existing session is detected, router should route here
@@ -31,17 +33,22 @@ func New(sm session.Manager, notFound ControllerHandler, sessionFallbackURL stri
 	return Router{
 		sessionManager:         sm,
 		urlRoutes:              make([]URLRoute, 0),
+		urlRoutesMutex:         &sync.RWMutex{},
 		pageNotFoundController: notFound,
 		store:                  store.New(),
 		SessionFallbackURL:     sessionFallbackURL,
 	}
 }
 
-func (router Router) findRoute(req *http.Request) URLRoute {
+func (router *Router) findRoute(req *http.Request) URLRoute {
 	path := req.URL.Path
 	method := req.Method
 
-	for _, v := range router.urlRoutes {
+	router.urlRoutesMutex.RLock()
+	urlRoutes := router.urlRoutes
+	router.urlRoutesMutex.RUnlock()
+
+	for _, v := range urlRoutes {
 		pathRegExp := regexp.MustCompile(v.urlRegExp)
 
 		if pathRegExp.MatchString(path) && (v.method == method || v.method == "ALL") && v.checkerHandler(req) {
@@ -97,8 +104,7 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 	routeHandler(w, r, *urlOptions, router.sessionManager, router.store)
 }
 
-// AddRoute - adds route
-func (router *Router) AddRoute(urlPattern string, method string, protected bool, pathHandler ControllerHandler, checkerHandler CheckerHandler) {
+func buildRoute(urlPattern string, method string, protected bool, pathHandler ControllerHandler, checkerHandler CheckerHandler) URLRoute {
 	params := make(map[string]int)
 	pathRegExp := url.PatternToRegExp(urlPattern)
 
@@ -115,14 +121,41 @@ func (router *Router) AddRoute(urlPattern string, method string, protected bool,
 		}
 	}
 
-	router.urlRoutes = append(router.urlRoutes, URLRoute{
+	return URLRoute{
 		urlRegExp:      pathRegExp,
 		method:         method,
 		handler:        pathHandler,
 		params:         params,
 		protected:      protected,
 		checkerHandler: checkerHandler,
+	}
+}
+
+// AddRoute - adds route
+func (router *Router) AddRoute(urlPattern string, method string, protected bool, pathHandler ControllerHandler, checkerHandler CheckerHandler) {
+	route := buildRoute(urlPattern, method, protected, pathHandler, checkerHandler)
+
+	router.urlRoutesMutex.Lock()
+	router.urlRoutes = append(router.urlRoutes, route)
+	router.urlRoutesMutex.Unlock()
+}
+
+// AddRouteFunc - function used to register a single route during ReplaceRoutes
+type AddRouteFunc func(urlPattern string, method string, protected bool, pathHandler ControllerHandler, checkerHandler CheckerHandler)
+
+// ReplaceRoutes - atomically replaces all registered routes with the ones
+// added by the register callback; requests keep matching against the old
+// routes until the swap happens
+func (router *Router) ReplaceRoutes(register func(addRoute AddRouteFunc)) {
+	newRoutes := make([]URLRoute, 0)
+
+	register(func(urlPattern string, method string, protected bool, pathHandler ControllerHandler, checkerHandler CheckerHandler) {
+		newRoutes = append(newRoutes, buildRoute(urlPattern, method, protected, pathHandler, checkerHandler))
 	})
+
+	router.urlRoutesMutex.Lock()
+	router.urlRoutes = newRoutes
+	router.urlRoutesMutex.Unlock()
 }
 
 // AddDataSource - adds data source

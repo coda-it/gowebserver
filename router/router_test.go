@@ -174,6 +174,61 @@ func TestNew(t *testing.T) {
 		}
 	})
 
+	t.Run("Should replace routes atomically", func(t *testing.T) {
+		sm := session.New()
+		notFoundContent := "not found handler"
+		router := New(sm, contentHandler(t, notFoundContent), "/login")
+
+		oldContent := "old handler"
+		newContent := "new handler"
+
+		router.AddRoute("/old", "GET", false, contentHandler(t, oldContent), checkerHandler)
+
+		router.ReplaceRoutes(func(addRoute AddRouteFunc) {
+			addRoute("/new", "GET", false, contentHandler(t, newContent), checkerHandler)
+		})
+
+		requestNew, _ := http.NewRequest(http.MethodGet, "/new", nil)
+		writerNew := httptest.NewRecorder()
+		router.Route(writerNew, requestNew)
+		if bytes.Compare(writerNew.Body.Bytes(), []byte(newContent)) != 0 {
+			t.Errorf("Route added via ReplaceRoutes not handled")
+		}
+
+		requestOld, _ := http.NewRequest(http.MethodGet, "/old", nil)
+		writerOld := httptest.NewRecorder()
+		router.Route(writerOld, requestOld)
+		if bytes.Compare(writerOld.Body.Bytes(), []byte(notFoundContent)) != 0 {
+			t.Errorf("Route registered before ReplaceRoutes should be removed")
+		}
+	})
+
+	t.Run("Should handle requests while routes are being replaced", func(t *testing.T) {
+		sm := session.New()
+		router := New(sm, handlerCallback, "/login")
+
+		router.AddRoute("/api/user", "GET", false, handlerCallback, checkerHandler)
+
+		done := make(chan struct{})
+
+		go func() {
+			for i := 0; i < 100; i++ {
+				router.ReplaceRoutes(func(addRoute AddRouteFunc) {
+					addRoute("/api/user", "GET", false, handlerCallback, checkerHandler)
+				})
+			}
+			close(done)
+		}()
+
+		for i := 0; i < 100; i++ {
+			request, _ := http.NewRequest(http.MethodGet, "/api/user", nil)
+			writer := httptest.NewRecorder()
+			router.Route(writer, request)
+		}
+
+		<-done
+	})
+
 	t.Run("Should render to 'not found' page when checker doesn't allow to access route", func(t *testing.T) {
 		checkerHandler := func(r *http.Request) bool {
 			return false
