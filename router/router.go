@@ -92,6 +92,7 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil || router.sessionManager.IsExist(sid) == false {
 			http.Redirect(w, r, router.SessionFallbackURL, http.StatusSeeOther)
+			return
 		}
 	}
 
