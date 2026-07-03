@@ -174,6 +174,54 @@ func TestNew(t *testing.T) {
 		}
 	})
 
+	t.Run("Should not execute handler after redirect when session is invalid", func(t *testing.T) {
+		sm := session.New()
+
+		router := New(sm, handlerCallback, "/login")
+
+		handlerExecuted := false
+		protectedHandler := func(w http.ResponseWriter, r *http.Request, opt URLOptions, sm session.ISessionManager, s store.IStore) {
+			handlerExecuted = true
+		}
+
+		router.AddRoute("/protected", "GET", true, protectedHandler, checkerHandler)
+
+		jsonBytes, _ := json.Marshal(struct{}{})
+		request, _ := http.NewRequest(http.MethodGet, "/protected", bytes.NewReader(jsonBytes))
+		writer := httptest.NewRecorder()
+		router.Route(writer, request)
+
+		if writer.Code != http.StatusSeeOther {
+			t.Errorf("Expected redirect status %d, got %d", http.StatusSeeOther, writer.Code)
+		}
+		if handlerExecuted {
+			t.Errorf("Protected handler must not execute after redirect when session is invalid")
+		}
+	})
+
+	t.Run("Should execute handler when valid session exists", func(t *testing.T) {
+		sm := session.New()
+		sm.Create("valid-session-id")
+
+		router := New(sm, handlerCallback, "/login")
+
+		content := "protected content"
+		router.AddRoute("/protected", "GET", true, contentHandler(t, content), checkerHandler)
+
+		jsonBytes, _ := json.Marshal(struct{}{})
+		request, _ := http.NewRequest(http.MethodGet, "/protected", bytes.NewReader(jsonBytes))
+		request.AddCookie(&http.Cookie{Name: session.SessionKey, Value: "valid-session-id"})
+		writer := httptest.NewRecorder()
+		router.Route(writer, request)
+
+		if writer.Code != http.StatusOK {
+			t.Errorf("Expected status %d, got %d", http.StatusOK, writer.Code)
+		}
+		if bytes.Compare(writer.Body.Bytes(), []byte(content)) != 0 {
+			t.Errorf("Expected handler to execute with valid session, got body: %s", writer.Body.String())
+		}
+	})
+
 	t.Run("Should replace routes atomically", func(t *testing.T) {
 		sm := session.New()
 		notFoundContent := "not found handler"
