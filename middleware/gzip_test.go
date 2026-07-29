@@ -152,24 +152,69 @@ func TestGzipEmptyBodyNotEncoded(t *testing.T) {
 	}
 }
 
-// flushHijackRecorder augments httptest.ResponseRecorder with the optional
-// interfaces a real net/http writer exposes, so we can assert the wrapper
-// forwards them.
-type flushHijackRecorder struct {
-	*httptest.ResponseRecorder
-	flushed  bool
-	hijacked bool
+func TestIsCompressible(t *testing.T) {
+	cases := map[string]bool{
+		"text/html":                    true,
+		"text/html; charset=utf-8":     true,
+		"application/json":             true,
+		"image/png":                    false,
+		"image/svg+xml":                true,
+		"image/svg+xml; charset=utf-8": true, // parameterised SVG still compresses
+		"video/mp4":                    false,
+		"font/woff2":                   false,
+		"":                             true, // unset: default to compressing
+	}
+	for ct, want := range cases {
+		if got := isCompressible(ct); got != want {
+			t.Errorf("isCompressible(%q) = %v, want %v", ct, got, want)
+		}
+	}
 }
 
-func (r *flushHijackRecorder) Flush() { r.flushed = true }
+func TestGzipPreservesHandlerVary(t *testing.T) {
+	// A handler that sets Vary itself (via Set, which replaces) must not lose
+	// Accept-Encoding from the committed response.
+	h := Gzip(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Vary", "Origin")
+		w.Header().Set("Content-Type", "text/plain")
+		io.WriteString(w, strings.Repeat("x", 200))
+	}))
 
-func (r *flushHijackRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	// Vary may be sent as multiple header lines; caches combine them, so check
+	// the full set rather than just the first line.
+	vary := strings.Join(rec.Result().Header["Vary"], ", ")
+	if !strings.Contains(vary, "Origin") || !strings.Contains(vary, "Accept-Encoding") {
+		t.Errorf("Vary = %q, want both Origin and Accept-Encoding", vary)
+	}
+}
+
+// fullRecorder augments httptest.ResponseRecorder with the optional interfaces
+// a real net/http writer exposes, so we can assert the wrapper forwards them.
+type fullRecorder struct {
+	*httptest.ResponseRecorder
+	flushed    bool
+	hijacked   bool
+	closeNotCh chan bool
+}
+
+func (r *fullRecorder) Flush() { r.flushed = true }
+
+func (r *fullRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	r.hijacked = true
 	return nil, nil, nil
 }
 
-func TestGzipForwardsFlusherAndHijacker(t *testing.T) {
-	var sawFlusher, sawHijacker bool
+func (r *fullRecorder) CloseNotify() <-chan bool { return r.closeNotCh }
+
+func TestGzipForwardsOptionalInterfaces(t *testing.T) {
+	var sawFlusher, sawHijacker, sawCloseNotifier bool
+	rec := &fullRecorder{ResponseRecorder: httptest.NewRecorder(), closeNotCh: make(chan bool)}
+
 	h := Gzip(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if f, ok := w.(http.Flusher); ok {
 			sawFlusher = true
@@ -180,11 +225,16 @@ func TestGzipForwardsFlusherAndHijacker(t *testing.T) {
 			sawHijacker = true
 			hj.Hijack()
 		}
+		if cn, ok := w.(http.CloseNotifier); ok {
+			// Forwarded channel must be the underlying one.
+			if cn.CloseNotify() == rec.closeNotCh {
+				sawCloseNotifier = true
+			}
+		}
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
-	rec := &flushHijackRecorder{ResponseRecorder: httptest.NewRecorder()}
 	h.ServeHTTP(rec, req)
 
 	if !sawFlusher {
@@ -192,6 +242,9 @@ func TestGzipForwardsFlusherAndHijacker(t *testing.T) {
 	}
 	if !sawHijacker {
 		t.Error("handler could not assert http.Hijacker on the wrapped writer")
+	}
+	if !sawCloseNotifier {
+		t.Error("http.CloseNotifier was not forwarded to the underlying writer")
 	}
 	if !rec.flushed {
 		t.Error("Flush was not forwarded to the underlying writer")

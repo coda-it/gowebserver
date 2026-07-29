@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"errors"
+	"mime"
 	"net"
 	"net/http"
 	"strconv"
@@ -30,15 +31,39 @@ var uncompressibleContentTypes = []string{
 }
 
 func isCompressible(contentType string) bool {
-	if contentType == "image/svg+xml" {
+	// Strip any parameters (e.g. "; charset=utf-8") and normalise case so a
+	// parameterised type such as "image/svg+xml; charset=utf-8" is classified
+	// by its media type rather than by raw-string matching.
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		// Unknown or unset type: default to compressing (text-like payloads).
+		return true
+	}
+	if mediaType == "image/svg+xml" {
 		return true
 	}
 	for _, prefix := range uncompressibleContentTypes {
-		if strings.HasPrefix(contentType, prefix) {
+		if strings.HasPrefix(mediaType, prefix) {
 			return false
 		}
 	}
 	return true
+}
+
+// ensureVary adds value to the Vary header unless it (or "*") is already
+// present, preserving any Vary fields the handler set itself. It reads the
+// header map directly rather than using Header.Values, which was added in Go
+// 1.14, for the module's Go 1.12 baseline.
+func ensureVary(h http.Header, value string) {
+	for _, existing := range h["Vary"] {
+		for _, field := range strings.Split(existing, ",") {
+			field = strings.TrimSpace(field)
+			if field == "*" || strings.EqualFold(field, value) {
+				return
+			}
+		}
+	}
+	h.Add("Vary", value)
 }
 
 // acceptsGzip reports whether the Accept-Encoding header actually allows gzip.
@@ -89,11 +114,12 @@ func acceptsGzip(header string) bool {
 
 type gzipResponseWriter struct {
 	http.ResponseWriter
-	gzipWriter  *gzip.Writer
-	status      int
-	wroteHeader bool // caller has chosen a status
-	committed   bool // headers have been flushed to the underlying writer
-	compress    bool
+	gzipWriter    *gzip.Writer
+	status        int
+	allowCompress bool // client advertised gzip support
+	wroteHeader   bool // caller has chosen a status
+	committed     bool // headers have been flushed to the underlying writer
+	compress      bool // final decision: this response is being gzipped
 }
 
 // WriteHeader records the status but defers writing headers to the underlying
@@ -119,13 +145,21 @@ func (w *gzipResponseWriter) commit(sniff []byte) {
 		status = http.StatusOK
 	}
 
+	// Representation depends on Accept-Encoding regardless of whether this
+	// particular response ends up compressed, so declare it at commit time.
+	// Doing it here (not before the handler runs) survives a handler that
+	// overwrites Vary via Header().Set.
+	ensureVary(w.Header(), "Accept-Encoding")
+
 	if len(sniff) > 0 && w.Header().Get("Content-Type") == "" {
 		w.Header().Set("Content-Type", http.DetectContentType(sniff))
 	}
 
-	// Only compress when there is a body to compress: an empty response must
-	// not advertise Content-Encoding: gzip with a zero-length payload.
-	w.compress = len(sniff) > 0 &&
+	// Only compress when the client accepts gzip and there is a body to
+	// compress: an empty response must not advertise Content-Encoding: gzip
+	// with a zero-length payload.
+	w.compress = w.allowCompress &&
+		len(sniff) > 0 &&
 		status != http.StatusNoContent &&
 		status != http.StatusNotModified &&
 		status != http.StatusPartialContent &&
@@ -180,6 +214,18 @@ func (w *gzipResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, errors.New("gzip: underlying ResponseWriter does not implement http.Hijacker")
 }
 
+// CloseNotify forwards the underlying writer's CloseNotifier when available.
+// http.CloseNotifier is deprecated in favour of Request.Context, but is
+// preserved here for legacy SSE/long-poll handlers targeting the module's Go
+// 1.12 baseline. Returns a nil channel (which never fires) when the underlying
+// writer does not implement it.
+func (w *gzipResponseWriter) CloseNotify() <-chan bool {
+	if cn, ok := w.ResponseWriter.(http.CloseNotifier); ok {
+		return cn.CloseNotify()
+	}
+	return nil
+}
+
 func (w *gzipResponseWriter) close() {
 	// Flush headers for responses that never wrote a body (e.g. 204/304).
 	if !w.committed {
@@ -193,21 +239,16 @@ func (w *gzipResponseWriter) close() {
 	w.gzipWriter = nil
 }
 
-// Gzip - wraps a handler with gzip compression for clients that accept it
+// Gzip - wraps a handler with gzip compression for clients that accept it.
+// Both gzip-capable and identity responses flow through the same wrapper so
+// optional interfaces (Flusher, Hijacker, CloseNotifier) and the
+// Vary: Accept-Encoding header are handled consistently on every path.
 func Gzip(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Representation selection depends on Accept-Encoding, so Vary must be
-		// set on both the compressed and the identity (bypass) responses;
-		// otherwise a shared cache may serve an identity entry to gzip-capable
-		// clients for the full cache lifetime.
-		w.Header().Add("Vary", "Accept-Encoding")
-
-		if !acceptsGzip(r.Header.Get("Accept-Encoding")) {
-			next.ServeHTTP(w, r)
-			return
+		gzw := &gzipResponseWriter{
+			ResponseWriter: w,
+			allowCompress:  acceptsGzip(r.Header.Get("Accept-Encoding")),
 		}
-
-		gzw := &gzipResponseWriter{ResponseWriter: w}
 		defer gzw.close()
 
 		next.ServeHTTP(gzw, r)
