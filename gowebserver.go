@@ -38,10 +38,34 @@ func New(options WebServerOptions, notFound router.ControllerHandler, sessionFal
 // caching and rely on ETag/Last-Modified revalidation from http.FileServer
 const staticCacheControl = "public, max-age=3600, must-revalidate"
 
+// cacheControlResponseWriter applies the cache policy only once the status is
+// known, so error responses (404, 5xx, ...) are not marked publicly cacheable.
+type cacheControlResponseWriter struct {
+	http.ResponseWriter
+	value       string
+	wroteHeader bool
+}
+
+func (w *cacheControlResponseWriter) WriteHeader(status int) {
+	if !w.wroteHeader {
+		w.wroteHeader = true
+		if status < 400 {
+			w.Header().Set("Cache-Control", w.value)
+		}
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *cacheControlResponseWriter) Write(b []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
 func withStaticCacheControl(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", staticCacheControl)
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(&cacheControlResponseWriter{ResponseWriter: w, value: staticCacheControl}, r)
 	})
 }
 
