@@ -125,6 +125,13 @@ type gzipResponseWriter struct {
 // WriteHeader records the status but defers writing headers to the underlying
 // writer until the first Write, so the body can still be content-sniffed.
 func (w *gzipResponseWriter) WriteHeader(status int) {
+	// 1xx are interim informational responses (e.g. 103 Early Hints) that may
+	// precede the final status. Forward them straight through without recording
+	// them as the final status or deferring them.
+	if status >= 100 && status < 200 {
+		w.ResponseWriter.WriteHeader(status)
+		return
+	}
 	if w.wroteHeader {
 		return
 	}
@@ -191,9 +198,9 @@ func (w *gzipResponseWriter) Write(b []byte) (int, error) {
 	return w.gzipWriter.Write(b)
 }
 
-// Flush forwards to the underlying writer so streaming responses (e.g. SSE)
+// flush forwards to the underlying writer so streaming responses (e.g. SSE)
 // keep working, flushing any buffered compressed data first.
-func (w *gzipResponseWriter) Flush() {
+func (w *gzipResponseWriter) flush() {
 	if !w.committed {
 		w.commit(nil)
 	}
@@ -205,21 +212,19 @@ func (w *gzipResponseWriter) Flush() {
 	}
 }
 
-// Hijack forwards to the underlying writer so connection upgrades (e.g.
+// hijack forwards to the underlying writer so connection upgrades (e.g.
 // WebSocket) keep working when the server supports them.
-func (w *gzipResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+func (w *gzipResponseWriter) hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if h, ok := w.ResponseWriter.(http.Hijacker); ok {
 		return h.Hijack()
 	}
 	return nil, nil, errors.New("gzip: underlying ResponseWriter does not implement http.Hijacker")
 }
 
-// CloseNotify forwards the underlying writer's CloseNotifier when available.
-// http.CloseNotifier is deprecated in favour of Request.Context, but is
-// preserved here for legacy SSE/long-poll handlers targeting the module's Go
-// 1.12 baseline. Returns a nil channel (which never fires) when the underlying
-// writer does not implement it.
-func (w *gzipResponseWriter) CloseNotify() <-chan bool {
+// closeNotify forwards the underlying writer's CloseNotifier. http.CloseNotifier
+// is deprecated in favour of Request.Context, but is preserved here for legacy
+// SSE/long-poll handlers targeting the module's Go 1.12 baseline.
+func (w *gzipResponseWriter) closeNotify() <-chan bool {
 	if cn, ok := w.ResponseWriter.(http.CloseNotifier); ok {
 		return cn.CloseNotify()
 	}
@@ -239,6 +244,80 @@ func (w *gzipResponseWriter) close() {
 	w.gzipWriter = nil
 }
 
+// The following types expose exactly the optional interfaces the underlying
+// writer supports. gzipResponseWriter itself deliberately does NOT implement
+// Flusher/Hijacker/CloseNotifier (its helpers are unexported), so a handler's
+// capability check such as w.(http.Hijacker) reflects the real writer — an
+// HTTP/2 writer, for example, is a Flusher but not a Hijacker.
+
+type flusherWriter struct{ *gzipResponseWriter }
+
+func (w flusherWriter) Flush() { w.flush() }
+
+type hijackerWriter struct{ *gzipResponseWriter }
+
+func (w hijackerWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) { return w.hijack() }
+
+type closeNotifierWriter struct{ *gzipResponseWriter }
+
+func (w closeNotifierWriter) CloseNotify() <-chan bool { return w.closeNotify() }
+
+type flushHijackWriter struct{ *gzipResponseWriter }
+
+func (w flushHijackWriter) Flush()                                       { w.flush() }
+func (w flushHijackWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) { return w.hijack() }
+
+type flushCloseNotifyWriter struct{ *gzipResponseWriter }
+
+func (w flushCloseNotifyWriter) Flush()                   { w.flush() }
+func (w flushCloseNotifyWriter) CloseNotify() <-chan bool { return w.closeNotify() }
+
+type hijackCloseNotifyWriter struct{ *gzipResponseWriter }
+
+func (w hijackCloseNotifyWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) { return w.hijack() }
+func (w hijackCloseNotifyWriter) CloseNotify() <-chan bool                     { return w.closeNotify() }
+
+type fullWriter struct{ *gzipResponseWriter }
+
+func (w fullWriter) Flush()                                       { w.flush() }
+func (w fullWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) { return w.hijack() }
+func (w fullWriter) CloseNotify() <-chan bool                     { return w.closeNotify() }
+
+// wrapCapabilities returns a ResponseWriter that exposes only the optional
+// interfaces (Flusher, Hijacker, CloseNotifier) that the underlying writer
+// under actually implements, so handler feature-detection keeps working.
+func wrapCapabilities(gz *gzipResponseWriter, under http.ResponseWriter) http.ResponseWriter {
+	var bits int
+	if _, ok := under.(http.Flusher); ok {
+		bits |= 1
+	}
+	if _, ok := under.(http.Hijacker); ok {
+		bits |= 2
+	}
+	if _, ok := under.(http.CloseNotifier); ok {
+		bits |= 4
+	}
+
+	switch bits {
+	case 1:
+		return flusherWriter{gz}
+	case 2:
+		return hijackerWriter{gz}
+	case 3:
+		return flushHijackWriter{gz}
+	case 4:
+		return closeNotifierWriter{gz}
+	case 5:
+		return flushCloseNotifyWriter{gz}
+	case 6:
+		return hijackCloseNotifyWriter{gz}
+	case 7:
+		return fullWriter{gz}
+	default:
+		return gz
+	}
+}
+
 // Gzip - wraps a handler with gzip compression for clients that accept it.
 // Both gzip-capable and identity responses flow through the same wrapper so
 // optional interfaces (Flusher, Hijacker, CloseNotifier) and the
@@ -251,6 +330,6 @@ func Gzip(next http.Handler) http.Handler {
 		}
 		defer gzw.close()
 
-		next.ServeHTTP(gzw, r)
+		next.ServeHTTP(wrapCapabilities(gzw, w), r)
 	})
 }

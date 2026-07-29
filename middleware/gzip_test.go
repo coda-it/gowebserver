@@ -253,3 +253,72 @@ func TestGzipForwardsOptionalInterfaces(t *testing.T) {
 		t.Error("Hijack was not forwarded to the underlying writer")
 	}
 }
+
+// h2Recorder mimics an HTTP/2 writer: a Flusher and CloseNotifier, but not a
+// Hijacker.
+type h2Recorder struct {
+	*httptest.ResponseRecorder
+	closeCh chan bool
+}
+
+func (r *h2Recorder) Flush()                   {}
+func (r *h2Recorder) CloseNotify() <-chan bool { return r.closeCh }
+
+func TestGzipDoesNotExposeUnsupportedInterfaces(t *testing.T) {
+	var isFlusher, isCloseNotifier, isHijacker bool
+	h := Gzip(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, isFlusher = w.(http.Flusher)
+		_, isCloseNotifier = w.(http.CloseNotifier)
+		_, isHijacker = w.(http.Hijacker)
+		io.WriteString(w, "ok")
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := &h2Recorder{ResponseRecorder: httptest.NewRecorder(), closeCh: make(chan bool)}
+	h.ServeHTTP(rec, req)
+
+	if !isFlusher {
+		t.Error("expected wrapped writer to be an http.Flusher")
+	}
+	if !isCloseNotifier {
+		t.Error("expected wrapped writer to be an http.CloseNotifier")
+	}
+	if isHijacker {
+		t.Error("wrapped writer must NOT expose http.Hijacker when the underlying writer lacks it")
+	}
+}
+
+// recordingWriter captures every WriteHeader call so interim (1xx) and final
+// statuses can be asserted.
+type recordingWriter struct {
+	header http.Header
+	codes  []int
+	body   bytes.Buffer
+}
+
+func (w *recordingWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = http.Header{}
+	}
+	return w.header
+}
+func (w *recordingWriter) WriteHeader(code int)        { w.codes = append(w.codes, code) }
+func (w *recordingWriter) Write(b []byte) (int, error) { return w.body.Write(b) }
+
+func TestGzipForwardsInterimStatus(t *testing.T) {
+	h := Gzip(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusEarlyHints) // 103
+		w.WriteHeader(http.StatusCreated)    // 201 final
+		io.WriteString(w, "created")
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := &recordingWriter{}
+	h.ServeHTTP(rec, req)
+
+	if len(rec.codes) != 2 || rec.codes[0] != http.StatusEarlyHints || rec.codes[1] != http.StatusCreated {
+		t.Fatalf("expected [103 201] status sequence, got %v", rec.codes)
+	}
+}
