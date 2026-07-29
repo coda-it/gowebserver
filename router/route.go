@@ -4,6 +4,7 @@ import (
 	"github.com/coda-it/gowebserver/session"
 	"github.com/coda-it/gowebserver/store"
 	"net/http"
+	"regexp"
 )
 
 // URLOptions - url options type
@@ -18,7 +19,7 @@ type CheckerHandler func(*http.Request) bool
 
 // URLRoute - url route type
 type URLRoute struct {
-	urlRegExp      string
+	urlRegExp      *regexp.Regexp
 	method         string
 	handler        ControllerHandler
 	params         map[string]int
