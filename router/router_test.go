@@ -41,7 +41,7 @@ func TestNew(t *testing.T) {
 
 		addedRoute := router.urlRoutes[0]
 
-		if len(router.urlRoutes) != 1 && addedRoute.method == "ALL" && addedRoute.urlRegExp == "^\\/api\\/user$" {
+		if len(router.urlRoutes) != 1 && addedRoute.method == "ALL" && addedRoute.urlRegExp.String() == "^\\/api\\/user$" {
 			t.Errorf("Router should have one route after adding one")
 		}
 	})

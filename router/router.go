@@ -49,9 +49,7 @@ func (router *Router) findRoute(req *http.Request) URLRoute {
 	router.urlRoutesMutex.RUnlock()
 
 	for _, v := range urlRoutes {
-		pathRegExp := regexp.MustCompile(v.urlRegExp)
-
-		if pathRegExp.MatchString(path) && (v.method == method || v.method == "ALL") && v.checkerHandler(req) {
+		if v.urlRegExp.MatchString(path) && (v.method == method || v.method == "ALL") && v.checkerHandler(req) {
 			return v
 		}
 	}
@@ -84,8 +82,12 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 		params,
 	}
 
+	routePattern := ""
+	if route.urlRegExp != nil {
+		routePattern = route.urlRegExp.String()
+	}
 	logger.Log(logger.INFO, "Navigating to url = "+urlPath+" vs route = "+
-		route.urlRegExp)
+		routePattern)
 
 	if route.protected {
 		sid, err := session.GetSessionID(r)
@@ -107,7 +109,7 @@ func (router *Router) Route(w http.ResponseWriter, r *http.Request) {
 
 func buildRoute(urlPattern string, method string, protected bool, pathHandler ControllerHandler, checkerHandler CheckerHandler) URLRoute {
 	params := make(map[string]int)
-	pathRegExp := url.PatternToRegExp(urlPattern)
+	pathRegExp := regexp.MustCompile(url.PatternToRegExp(urlPattern))
 
 	urlPathItems := strings.Split(urlPattern, "/")
 
