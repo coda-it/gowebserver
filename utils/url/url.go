@@ -8,7 +8,7 @@ import (
 // PatternToRegExp - translates URL pattern to RegExp
 func PatternToRegExp(urlPattern string) string {
 	mapParameters := func(urlItem string) string {
-		return "(/([0-9a-zA-Z])*)?"
+		return "(/([0-9a-zA-Z_-])*)?"
 	}
 	wrapURL := func(url string) string {
 		return `^` + url + `$`
