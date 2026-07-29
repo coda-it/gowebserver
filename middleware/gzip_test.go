@@ -20,6 +20,8 @@ func TestAcceptsGzip(t *testing.T) {
 		"gzip, deflate":          true,
 		"deflate, gzip;q=0.8":    true,
 		"gzip;q=0":               false,
+		"gzip;Q=0":               false, // parameter name is case-insensitive
+		"gzip; q=0":              false,
 		"gzip;q=0.0":             false,
 		"*":                      true,
 		"*;q=0":                  false,
@@ -82,11 +84,17 @@ func TestGzipSkippedWhenRefused(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	if enc := rec.Result().Header.Get("Content-Encoding"); enc != "" {
+	res := rec.Result()
+	if enc := res.Header.Get("Content-Encoding"); enc != "" {
 		t.Fatalf("expected no encoding, got %q", enc)
 	}
 	if rec.Body.String() != body {
 		t.Errorf("body = %q, want %q", rec.Body.String(), body)
+	}
+	// Vary must be present even on the identity path so shared caches do not
+	// reuse this entry for gzip-capable clients.
+	if !strings.Contains(res.Header.Get("Vary"), "Accept-Encoding") {
+		t.Errorf("missing Vary: Accept-Encoding on bypass path")
 	}
 }
 

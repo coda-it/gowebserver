@@ -62,7 +62,9 @@ func acceptsGzip(header string) bool {
 
 		q := 1.0
 		for _, t := range tokens[1:] {
-			t = strings.TrimSpace(t)
+			// Parameter names are case-insensitive per the HTTP grammar, so a
+			// valid "gzip;Q=0" must be recognised as a refusal.
+			t = strings.ToLower(strings.TrimSpace(t))
 			if strings.HasPrefix(t, "q=") {
 				if v, err := strconv.ParseFloat(strings.TrimSpace(t[2:]), 64); err == nil {
 					q = v
@@ -194,12 +196,16 @@ func (w *gzipResponseWriter) close() {
 // Gzip - wraps a handler with gzip compression for clients that accept it
 func Gzip(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Representation selection depends on Accept-Encoding, so Vary must be
+		// set on both the compressed and the identity (bypass) responses;
+		// otherwise a shared cache may serve an identity entry to gzip-capable
+		// clients for the full cache lifetime.
+		w.Header().Add("Vary", "Accept-Encoding")
+
 		if !acceptsGzip(r.Header.Get("Accept-Encoding")) {
 			next.ServeHTTP(w, r)
 			return
 		}
-
-		w.Header().Add("Vary", "Accept-Encoding")
 
 		gzw := &gzipResponseWriter{ResponseWriter: w}
 		defer gzw.close()

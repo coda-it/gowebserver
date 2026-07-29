@@ -16,6 +16,35 @@ type WebServerOptions struct {
 	StaticFilesDir string
 	Cert           string
 	CertPrvKey     string
+
+	// http.Server timeouts. A zero value applies a safe default; a negative
+	// value disables the timeout. Disable WriteTimeout (set it negative) for
+	// long-lived streaming responses such as SSE, where a fixed write deadline
+	// would otherwise cut the stream off.
+	ReadHeaderTimeout time.Duration
+	ReadTimeout       time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
+}
+
+const (
+	defaultReadHeaderTimeout = 10 * time.Second
+	defaultReadTimeout       = 30 * time.Second
+	defaultWriteTimeout      = 60 * time.Second
+	defaultIdleTimeout       = 120 * time.Second
+)
+
+// resolveTimeout maps a configured duration to an http.Server timeout: zero
+// selects the default, negative disables the timeout (0 for net/http).
+func resolveTimeout(configured, def time.Duration) time.Duration {
+	switch {
+	case configured < 0:
+		return 0
+	case configured == 0:
+		return def
+	default:
+		return configured
+	}
 }
 
 // WebServer - web server
@@ -83,10 +112,10 @@ func (s *WebServer) Run() bool {
 
 	server := &http.Server{
 		Addr:              s.Options.Port,
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second,
-		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: resolveTimeout(s.Options.ReadHeaderTimeout, defaultReadHeaderTimeout),
+		ReadTimeout:       resolveTimeout(s.Options.ReadTimeout, defaultReadTimeout),
+		WriteTimeout:      resolveTimeout(s.Options.WriteTimeout, defaultWriteTimeout),
+		IdleTimeout:       resolveTimeout(s.Options.IdleTimeout, defaultIdleTimeout),
 	}
 
 	var err error
